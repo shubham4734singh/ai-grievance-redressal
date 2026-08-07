@@ -1,0 +1,3 @@
+# Exclude documentation folder and markdown files as requested
+docs/
+*.md
