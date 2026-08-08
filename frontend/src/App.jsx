@@ -1,95 +1,74 @@
-import { useState } from 'react'
+import { Routes, Route, useNavigate } from 'react-router-dom';
+import Login from './pages/Login';
+import Register from './pages/Register';
+import FileGrievance from './pages/FileGrievance';
+import TrackGrievance from './pages/TrackGrievance';
+import AdminDashboard from './pages/AdminDashboard';
+import ProtectedRoute from './components/ProtectedRoute';
+import Chatbot from './components/Chatbot';
+
+// Placeholder Pages
+const Home = () => (
+  <div className="p-8 max-w-4xl mx-auto text-center mt-20">
+    <h1 className="text-4xl md:text-5xl font-bold text-gray-900">Resolve your issues faster with AI.</h1>
+    <p className="mt-6 text-xl text-gray-600">The transparent, intelligent, and seamless way to file and track grievances with government services.</p>
+    <div className="mt-10 flex gap-4 justify-center">
+      <a href="/file" className="bg-primary-500 text-white px-8 py-3 rounded-xl font-bold hover:bg-primary-600">File a Grievance</a>
+      <a href="/track" className="bg-white border-2 border-primary-500 text-primary-500 px-8 py-3 rounded-xl font-bold hover:bg-primary-50">Track Status</a>
+    </div>
+  </div>
+);
 
 function App() {
-  const [description, setDescription] = useState('')
-  const [location, setLocation] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [result, setResult] = useState(null)
+  const token = localStorage.getItem('token');
+  const user = JSON.parse(localStorage.getItem('user') || 'null');
+  const navigate = useNavigate();
 
-  const handleSubmit = async (e) => {
-    e.preventDefault()
-    setLoading(true)
-    
-    try {
-      const response = await fetch('/api/grievances/', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          description,
-          location,
-        }),
-      })
-      
-      const data = await response.json()
-      setResult(data)
-    } catch (error) {
-      console.error('Error:', error)
-    } finally {
-      setLoading(false)
-    }
-  }
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    navigate('/login');
+  };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-3xl mx-auto px-4">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">
-          AI-Grievance-Redressal
-        </h1>
-        <p className="text-gray-600 mb-8">
-          File a complaint against government services
-        </p>
+    <div className="min-h-screen bg-surface-bg flex flex-col">
+      {/* Basic Nav */}
+      <nav className="bg-primary-500 text-white p-4 shadow-sm">
+        <div className="max-w-7xl mx-auto flex gap-4 items-center">
+          <a href="/" className="font-bold hover:text-primary-100">Home</a>
+          <a href="/file" className="hover:text-primary-100">File Grievance</a>
+          <a href="/track" className="hover:text-primary-100">Track Status</a>
+          {user?.role === 'admin' && (
+            <a href="/admin" className="font-semibold text-yellow-300 hover:text-yellow-100">Admin Dashboard</a>
+          )}
+          <div className="flex-1"></div>
+          {token ? (
+            <div className="flex items-center gap-4">
+              <span className="text-primary-100 text-sm">Hello, {user?.full_name}</span>
+              <button onClick={handleLogout} className="hover:text-primary-100">Logout</button>
+            </div>
+          ) : (
+            <a href="/login" className="hover:text-primary-100">Login</a>
+          )}
+        </div>
+      </nav>
 
-        <form onSubmit={handleSubmit} className="bg-white shadow-md rounded-lg p-6">
-          <div className="mb-4">
-            <label className="block text-gray-700 text-sm font-bold mb-2">
-              Description
-            </label>
-            <textarea
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              rows="4"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Describe your grievance..."
-              required
-            />
-          </div>
+      {/* Main Content Area */}
+      <main className="flex-1 w-full max-w-7xl mx-auto md:p-6">
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/file" element={<ProtectedRoute><FileGrievance /></ProtectedRoute>} />
+          <Route path="/track" element={<ProtectedRoute><TrackGrievance /></ProtectedRoute>} />
+          <Route path="/admin" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+        </Routes>
+      </main>
 
-          <div className="mb-6">
-            <label className="block text-gray-700 text-sm font-bold mb-2">
-              Location
-            </label>
-            <input
-              type="text"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              value={location}
-              onChange={(e) => setLocation(e.target.value)}
-              placeholder="Enter your location"
-            />
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-blue-600 text-white font-bold py-3 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50"
-          >
-            {loading ? 'Submitting...' : 'Submit Grievance'}
-          </button>
-        </form>
-
-        {result && (
-          <div className="mt-6 bg-green-50 border border-green-200 rounded-lg p-4">
-            <h2 className="text-lg font-semibold text-green-800 mb-2">
-              Grievance Submitted Successfully!
-            </h2>
-            <p className="text-green-700">Grievance ID: {result.id}</p>
-            <p className="text-green-700">Status: {result.status}</p>
-          </div>
-        )}
-      </div>
+      {/* Global AI Chatbot */}
+      <Chatbot />
     </div>
-  )
+  );
 }
 
-export default App
+export default App;

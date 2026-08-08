@@ -50,15 +50,24 @@ git clone https://github.com/shubham4734singh/ai-grievance-redressal.git
 cd ai-grievance-redressal
 ```
 
-2. Start all services with Docker Compose
+2. Configure Environment Variables
+You MUST create a `.env` file in the `backend/` directory before running the application.
 ```bash
-docker-compose up --build
+cd backend
+cp .env.example .env
+# IMPORTANT: Open the .env file and fill in your GROQ_API_KEY and CLOUDINARY credentials!
+cd ..
 ```
 
-3. Access the application
+3. Start all services with Docker Compose
+```bash
+docker compose up --build -d
+```
+
+4. Access the application
+- Frontend: http://localhost:5173 (or http://localhost:3000 depending on Vite port)
 - Backend API: http://localhost:8000
 - API Docs: http://localhost:8000/docs
-- Frontend: http://localhost:3000
 - MongoDB: localhost:27017
 
 ### Docker Commands

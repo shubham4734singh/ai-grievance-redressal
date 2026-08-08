@@ -6,7 +6,7 @@ class Settings(BaseSettings):
     API_V1_STR: str = "/api/v1"
     
     MONGODB_URL: str = "mongodb://localhost:27017"
-    DATABASE_NAME: str = "grievance_redressal"
+    DATABASE_NAME: str = "ai-grievance-redressal"
     
     SECRET_KEY: str = "your-secret-key-here-change-in-production"
     ALGORITHM: str = "HS256"

@@ -1,26 +1,24 @@
 version: '3.8'
 
 services:
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+
   backend:
     build: ./backend
     ports:
       - "8000:8000"
-    environment:
-      - MONGODB_URL=mongodb://mongodb:27017
-      - DATABASE_NAME=grievance_redressal
-      - SECRET_KEY=your-secret-key-here-change-in-production
-    depends_on:
-      - mongodb
+    env_file:
+      - ./backend/.env
     volumes:
       - ./backend:/app
-    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
-
-  mongodb:
-    image: mongo:7
-    ports:
-      - "27017:27017"
-    volumes:
-      - mongodb_data:/data/db
-
-volumes:
-  mongodb_data:
+    command: >
+      sh -c "python init_db.py && 
+             uvicorn main:app --host 0.0.0.0 --port 8000 --reload"
