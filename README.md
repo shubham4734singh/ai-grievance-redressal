@@ -202,3 +202,14 @@ Contributions are welcome! Please read our contributing guidelines before submit
 ## License
 
 MIT
+
+## Department-Based Routing (Phase 5)
+The platform implements Role-Based Access Control (RBAC) with Department-level routing to ensure data privacy and operational efficiency.
+
+### Workflow:
+1. **AI Categorization**: When a citizen submits a grievance, the Llama 3 AI analyzes the text and assigns it to a specific department (e.g., `Water`, `Electricity`, `Roads`).
+2. **Admin Segregation**: Government officials are registered with a specific `department` tag. 
+3. **Filtered Views**: 
+   - A `Water` department admin logging in will ONLY see grievances tagged with `Water`.
+   - A `Super Admin` (department=`All`) will see all grievances across the city.
+4. **Dashboard UI**: The Admin Dashboard dynamically updates its title and metrics to reflect the admin's specific department scope.

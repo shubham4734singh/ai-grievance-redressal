@@ -92,7 +92,12 @@ async def list_grievances(
     db: AsyncIOMotorDatabase = Depends(get_database),
     current_user: dict = Depends(get_current_user)
 ):
-    query = {} if current_user.get("role") == "admin" else {"user_id": current_user["id"]}
+    if current_user.get("role") == "admin":
+        dept = current_user.get("department", "All")
+        query = {} if dept == "All" else {"department": dept}
+    else:
+        query = {"user_id": current_user["id"]}
+        
     cursor = db.grievances.find(query).sort("created_at", -1)
     
     grievances = []
@@ -165,3 +170,42 @@ async def update_grievance_status(
     updated_grievance = await db.grievances.find_one({"tracking_id": tracking_id})
     updated_grievance["id"] = str(updated_grievance.pop("_id"))
     return GrievanceResponse(**updated_grievance)
+
+@router.get("/analytics/dashboard")
+async def get_analytics(
+    db: AsyncIOMotorDatabase = Depends(get_database),
+    current_user: dict = Depends(get_current_user)
+):
+    if current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Only admins can view analytics")
+        
+    dept = current_user.get("department", "All")
+    pipeline = []
+    
+    if dept != "All":
+        pipeline.append({"$match": {"department": dept}})
+        
+    pipeline.append(
+        {"$facet": {
+            "total": [{"$count": "count"}],
+            "by_status": [
+                {"$group": {"_id": "$status", "count": {"$sum": 1}}}
+            ],
+            "by_category": [
+                {"$group": {"_id": "$category", "count": {"$sum": 1}}}
+            ],
+            "by_priority": [
+                {"$group": {"_id": "$priority", "count": {"$sum": 1}}}
+            ]
+        }}
+    )
+    
+    result = await db.grievances.aggregate(pipeline).to_list(1)
+    data = result[0]
+    
+    return {
+        "total": data["total"][0]["count"] if data["total"] else 0,
+        "status_distribution": {item["_id"]: item["count"] for item in data["by_status"]},
+        "category_distribution": {item["_id"] or "Uncategorized": item["count"] for item in data["by_category"]},
+        "priority_distribution": {item["_id"]: item["count"] for item in data["by_priority"]}
+    }

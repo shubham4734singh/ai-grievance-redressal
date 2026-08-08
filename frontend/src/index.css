@@ -4,6 +4,20 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Hide Google Translate UI entirely */
+body {
+  top: 0 !important;
+}
+.skiptranslate {
+  display: none !important;
+}
+#google_translate_element {
+  display: none !important;
+}
+.goog-te-banner-frame {
+  display: none !important;
+}
+
 @layer base {
   body {
     @apply font-sans antialiased bg-surface-bg text-gray-900;

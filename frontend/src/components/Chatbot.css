@@ -1,0 +1,10 @@
+.prose p {
+    margin-bottom: 0.5rem;
+}
+.prose p:last-child {
+    margin-bottom: 0;
+}
+.prose strong {
+    font-weight: 700;
+    color: inherit;
+}

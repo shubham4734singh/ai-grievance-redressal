@@ -143,7 +143,7 @@ const FileGrievance = () => {
                 onClick={isRecording ? stopRecording : startRecording}
                 className={`flex items-center gap-2 text-sm font-bold px-3 py-1.5 rounded-full transition-colors ${isRecording ? 'bg-red-100 text-red-600 animate-pulse' : 'bg-blue-100 text-blue-600 hover:bg-blue-200'}`}
               >
-                {isRecording ? '⏹ Stop Recording' : '🎤 Dictate with Voice'}
+                {isRecording ? ' Stop Recording' : ' Dictate with Voice'}
               </button>
             </div>
             <textarea

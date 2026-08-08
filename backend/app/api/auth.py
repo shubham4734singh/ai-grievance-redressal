@@ -3,7 +3,8 @@ from pydantic import BaseModel
 from typing import Optional
 from app.core.database import get_database
 from app.core.security import verify_password, get_password_hash, create_access_token
-from app.models.user import UserCreate, UserResponse, UserInDB
+from app.api.deps import get_current_user
+from app.models.user import UserCreate, UserResponse, UserInDB, AdminCreate
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from bson import ObjectId
 
@@ -59,3 +60,31 @@ async def login(credentials: LoginRequest, db: AsyncIOMotorDatabase = Depends(ge
         access_token=access_token,
         user=UserResponse(**user)
     )
+
+@router.post("/create-admin", response_model=UserResponse)
+async def create_admin(
+    new_admin: AdminCreate,
+    db: AsyncIOMotorDatabase = Depends(get_database),
+    current_user: dict = Depends(get_current_user)
+):
+    if current_user.get("role") != "admin" or current_user.get("department") != "All":
+        raise HTTPException(status_code=403, detail="Only Super Admins can create staff accounts")
+        
+    existing_user = await get_user_by_email(db, new_admin.email)
+    if existing_user:
+        raise HTTPException(status_code=400, detail="Email already registered")
+        
+    user_dict = new_admin.model_dump()
+    password = user_dict.pop("password")
+    user_dict["hashed_password"] = get_password_hash(password)
+    user_dict["role"] = "admin"
+    
+    db_user = UserInDB(**user_dict)
+    doc = db_user.model_dump(by_alias=True, exclude={"id"})
+    
+    result = await db.users.insert_one(doc)
+    
+    created_user = await db.users.find_one({"_id": result.inserted_id})
+    created_user["id"] = str(created_user.pop("_id"))
+    
+    return UserResponse(**created_user)

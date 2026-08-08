@@ -11,7 +11,7 @@ async def categorize_grievance(description: str) -> dict:
     
     Fields required in JSON:
     - category: string (e.g., Water Supply, Electricity, Roads, Sanitation, Public Safety, etc.)
-    - department: string (The government department responsible, e.g., Municipal Corporation, Electricity Board, PWD)
+    - department: string (MUST be EXACTLY one of these 5 options: "Water Department", "Electricity Board", "Roads & Transport", "Sanitation & Waste", "Police & Security")
     - priority: string (Choose one: Low, Medium, High, Urgent. Urgent is for life-threatening or severe issues)
     - sentiment: string (Choose one: Positive, Neutral, Negative, Angry)
     
