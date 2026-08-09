@@ -224,3 +224,26 @@ async def get_analytics(
         "category_distribution": {item["_id"] or "Uncategorized": item["count"] for item in data["by_category"]},
         "priority_distribution": {item["_id"]: item["count"] for item in data["by_priority"]}
     }
+
+from app.services.nlp import generate_solution_plan
+
+@router.get("/track/{tracking_id}/solution")
+async def get_grievance_solution(
+    tracking_id: str,
+    db: AsyncIOMotorDatabase = Depends(get_database),
+    current_user: dict = Depends(get_current_user)
+):
+    if current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Only admins can request AI solutions")
+        
+    grievance = await db.grievances.find_one({"tracking_id": tracking_id})
+    if not grievance:
+        raise HTTPException(status_code=404, detail="Grievance not found")
+        
+    plan = await generate_solution_plan(
+        description=grievance.get("description", ""),
+        department=grievance.get("department", "Unassigned"),
+        priority=grievance.get("priority", "Medium")
+    )
+    
+    return {"solution_plan": plan}

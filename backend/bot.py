@@ -158,6 +158,61 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("Action cancelled. You can type /start to begin again.", reply_markup=ReplyKeyboardRemove())
     return ConversationHandler.END
 
+async def track_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not context.args:
+        await update.message.reply_text("Please provide a Tracking ID. Example: `/track GRV-12345678`", parse_mode="Markdown")
+        return
+        
+    tracking_id = context.args[0].upper()
+    
+    client = AsyncIOMotorClient(settings.MONGODB_URL)
+    db = client[settings.DATABASE_NAME]
+    
+    grievance = await db.grievances.find_one({"tracking_id": tracking_id})
+    if not grievance:
+        await update.message.reply_text(f"Could not find any grievance with Tracking ID: `{tracking_id}`", parse_mode="Markdown")
+        return
+        
+    status = grievance.get("status", "Unknown")
+    dept = grievance.get("department", "Unassigned")
+    desc = grievance.get("description", "")
+    
+    history = grievance.get("history", [])
+    latest_note = history[-1]["note"] if history else "No updates yet."
+    
+    msg = (
+        f"*Status for {tracking_id}*\n\n"
+        f"*Current Status:* {status}\n"
+        f"*Department:* {dept}\n\n"
+        f"*Latest Update:* {latest_note}\n\n"
+        f"*Your Description:* {desc[:100]}{'...' if len(desc) > 100 else ''}"
+    )
+    
+    await update.message.reply_text(msg, parse_mode="Markdown")
+
+async def history_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat_id = update.message.chat_id
+    
+    client = AsyncIOMotorClient(settings.MONGODB_URL)
+    db = client[settings.DATABASE_NAME]
+    
+    cursor = db.grievances.find({"telegram_chat_id": chat_id}).sort("created_at", -1)
+    grievances = await cursor.to_list(length=10)
+    
+    if not grievances:
+        await update.message.reply_text("You haven't submitted any complaints via this Telegram bot yet.", parse_mode="Markdown")
+        return
+        
+    msg = "*Your Recent Complaints:*\n\n"
+    for g in grievances:
+        msg += f"🔹 *ID:* `{g['tracking_id']}`\n"
+        msg += f"   *Status:* {g.get('status', 'Unknown')}\n"
+        msg += f"   *Category:* {g.get('category', 'General')}\n\n"
+        
+    msg += "Type `/track <ID>` to see more details."
+    
+    await update.message.reply_text(msg, parse_mode="Markdown")
+
 def main():
     token = settings.TELEGRAM_BOT_TOKEN
     if not token:
@@ -177,6 +232,8 @@ def main():
     )
 
     application.add_handler(conv_handler)
+    application.add_handler(CommandHandler('track', track_command))
+    application.add_handler(CommandHandler('history', history_command))
     
     logging.info("Starting JanSewa Telegram Bot...")
     application.run_polling()

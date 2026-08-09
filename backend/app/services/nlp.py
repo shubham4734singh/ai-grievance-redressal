@@ -41,3 +41,28 @@ async def categorize_grievance(description: str) -> dict:
             "priority": "Medium",
             "sentiment": "Neutral"
         }
+
+async def generate_solution_plan(description: str, department: str, priority: str) -> str:
+    prompt = f"""
+    You are an expert civic administration AI assistant.
+    A citizen has reported a grievance. Your job is to provide a brief, actionable 3-step resolution plan for the government officer handling this ticket.
+    
+    Grievance Description: "{description}"
+    Assigned Department: {department}
+    Priority: {priority}
+    
+    Provide the response as a short, professional bulleted list (max 3 bullets). Be highly specific and actionable based on the description. Do NOT use markdown bold/italics, just standard text.
+    """
+    
+    try:
+        response = await client.chat.completions.create(
+            messages=[
+                {"role": "system", "content": "You are a helpful AI assistant for government officers."},
+                {"role": "user", "content": prompt}
+            ],
+            model="llama-3.1-8b-instant",
+            temperature=0.3
+        )
+        return response.choices[0].message.content.strip()
+    except Exception as e:
+        return "1. Review the grievance details.\n2. Contact the citizen if more info is needed.\n3. Dispatch the appropriate field team."

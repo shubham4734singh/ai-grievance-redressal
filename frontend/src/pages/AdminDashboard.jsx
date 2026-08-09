@@ -144,11 +144,33 @@ const AdminDashboard = () => {
     }
   };
 
+  const [solutionPlan, setSolutionPlan] = useState('');
+  const [generatingPlan, setGeneratingPlan] = useState(false);
+
+  const handleGeneratePlan = async () => {
+    setGeneratingPlan(true);
+    setSolutionPlan('');
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`/api/grievances/track/${selectedGrievance.tracking_id}/solution`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!res.ok) throw new Error('Failed to generate plan');
+      const data = await res.json();
+      setSolutionPlan(data.solution_plan);
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setGeneratingPlan(false);
+    }
+  };
+
   const openUpdateModal = (g) => {
     setSelectedGrievance(g);
     setStatus(g.status);
     setPriority(g.priority);
     setNote('');
+    setSolutionPlan('');
   };
 
   const [activeTab, setActiveTab] = useState('grievances');
@@ -321,6 +343,27 @@ const AdminDashboard = () => {
                   <img src={selectedGrievance.evidence_url} alt="Evidence" className="rounded-xl max-h-64 object-cover" />
                 </div>
               )}
+              
+              <div className="mt-6 bg-indigo-50 p-4 rounded-xl border border-indigo-100">
+                <div className="flex justify-between items-center mb-2">
+                  <p className="text-sm text-indigo-700 font-bold flex items-center gap-2">
+                    ✨ AI Suggested Action Plan
+                  </p>
+                  {!solutionPlan && (
+                    <Button size="sm" onClick={handleGeneratePlan} loading={generatingPlan} className="bg-indigo-600 hover:bg-indigo-700 text-white border-0">
+                      Generate Plan
+                    </Button>
+                  )}
+                </div>
+                {solutionPlan && (
+                  <div className="mt-3 text-indigo-900 text-sm whitespace-pre-wrap font-medium">
+                    {solutionPlan}
+                  </div>
+                )}
+                {!solutionPlan && !generatingPlan && (
+                  <p className="text-sm text-indigo-500">Click to automatically generate a step-by-step resolution plan for your field officers.</p>
+                )}
+              </div>
             </div>
 
             <hr className="my-6 border-gray-200" />
