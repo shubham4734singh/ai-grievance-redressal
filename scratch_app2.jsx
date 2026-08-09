@@ -1,15 +1,7 @@
 import { Routes, Route, useNavigate, Link, useLocation } from 'react-router-dom';
 import { Bell, ChevronDown, ChevronLeft, ChevronRight, FilePlus2, Landmark, Menu, Search, ShieldCheck, X, CircleCheck, Headphones, MapPin, MessageCircle, Clock3, Building2, ArrowRight, CheckCircle2, Sparkles, UserRound, KeyRound, Mail, Phone, LogOut } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import Login from './pages/Login'; 
-import Register from './pages/Register'; 
-import FileGrievance from './pages/FileGrievance'; 
-import TrackGrievance from './pages/TrackGrievance'; 
-import AdminDashboard from './pages/AdminDashboard'; 
-import Analytics from './pages/Analytics';
-import ProtectedRoute from './components/ProtectedRoute'; 
-import Chatbot from './components/Chatbot';
-import NotificationBell from './components/NotificationBell';
+import Login from './pages/Login'; import Register from './pages/Register'; import FileGrievance from './pages/FileGrievance'; import TrackGrievance from './pages/TrackGrievance'; import AdminDashboard from './pages/AdminDashboard'; import ProtectedRoute from './components/ProtectedRoute'; import Chatbot from './components/Chatbot';
 
 const OFFICER_EMAIL = 'shubham.cybersky@gmail.com';
 
@@ -40,58 +32,5 @@ const Home = () => {
 </div>;
 };
 
-function App() { 
-  const token=localStorage.getItem('token'); 
-  const user=JSON.parse(localStorage.getItem('user')||'null'); 
-  const navigate=useNavigate(); 
-  const location=useLocation(); 
-  const [open,setOpen]=useState(false); 
-  const admin=user?.role==='admin'; 
-  const isAdmin=location.pathname==='/admin' || location.pathname==='/analytics'; 
-  
-  const logout=()=>{
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    navigate('/login');
-  }; 
-
-  // Translation Logic
-  useEffect(() => {
-    window.googleTranslateElementInit = () => {
-      new window.google.translate.TranslateElement(
-        { pageLanguage: 'en', includedLanguages: 'en,hi,mr,gu,ta,te,bn', autoDisplay: false },
-        'google_translate_element'
-      );
-    };
-    const addScript = document.createElement('script');
-    addScript.setAttribute('src', '//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit');
-    document.body.appendChild(addScript);
-  }, []);
-
-  const handleLanguageChange = (e) => {
-    const lang = e.target.value;
-    if (lang === 'en') {
-      document.cookie = `googtrans=/en/en; path=/; domain=${window.location.hostname}`;
-      document.cookie = `googtrans=/en/en; path=/`;
-    } else {
-      document.cookie = `googtrans=/en/${lang}; path=/; domain=${window.location.hostname}`;
-      document.cookie = `googtrans=/en/${lang}; path=/`;
-    }
-    window.location.reload();
-  };
-  const currentLang = document.cookie.split('; ').find(row => row.startsWith('googtrans='))?.split('/')[2] || 'en';
-
-  return <div className="min-h-screen flex flex-col bg-surface-bg">
-    <header className="bg-white/90 backdrop-blur-md border-[#dce5ed] sticky top-0 z-40 border-b"><div className="max-w-7xl mx-auto px-5 h-[68px] flex items-center justify-between gap-5"><Link to="/" className="flex items-center gap-2.5 text-slate-900 font-bold"><span className="grid place-items-center w-9 h-9 bg-primary-500 rounded-xl text-white shadow-sm"><Landmark className="w-5 h-5"/></span><span>JanSewa <span className="font-normal text-slate-500">Portal</span></span></Link>
-  
-  <select className="hidden md:block bg-slate-100 text-slate-700 border border-slate-200 rounded-md px-2 py-1 text-sm font-semibold cursor-pointer outline-none hover:bg-slate-200 ml-auto" onChange={handleLanguageChange} value={currentLang}>
-    <option value="en">English</option>
-    <option value="hi">हिंदी</option>
-    <option value="mr">मराठी</option>
-    <option value="gu">ગુજરાતી</option>
-  </select>
-  <div id="google_translate_element" className="hidden"></div>
-  
-  <button aria-label="Toggle menu" onClick={()=>setOpen(!open)} className="md:hidden p-2 text-slate-600">{open?<X/>:<Menu/>}</button><nav className={`${open?'flex':'hidden'} md:flex absolute md:static top-[68px] inset-x-0 bg-white md:bg-transparent p-5 md:p-0 flex-col md:flex-row items-stretch md:items-center gap-1 md:gap-4 z-30 border-b md:border-0 border-slate-200 text-sm font-semibold text-slate-600`}><Link to="/" className="px-3 py-2 hover:text-primary-600">Home</Link>{!admin&&<><Link to="/file" className="px-3 py-2 hover:text-primary-600">Register grievance</Link><Link to="/track" className="px-3 py-2 hover:text-primary-600">Track status</Link></>}{admin&&<><Link to="/admin" className="px-3 py-2 hover:text-primary-600">Officer workspace</Link><Link to="/analytics" className="px-3 py-2 hover:text-primary-600">Analytics</Link></>}{token?<><div className="hidden md:block"><NotificationBell/></div><button onClick={logout} className="px-3 py-2 text-primary-600">Sign out</button></>:<Link to="/login" className="rounded-xl bg-primary-500 text-white px-4 py-2.5 text-center hover:bg-primary-600 shadow-sm transition-colors">Sign in</Link>}</nav></div></header><main className={isAdmin?'w-full':'flex-1 w-full'}><Routes><Route path="/" element={<Home/>}/><Route path="/file" element={<ProtectedRoute><FileGrievance/></ProtectedRoute>}/><Route path="/track" element={<ProtectedRoute><TrackGrievance/></ProtectedRoute>}/><Route path="/admin" element={<ProtectedRoute><AdminDashboard/></ProtectedRoute>}/><Route path="/analytics" element={<ProtectedRoute><Analytics/></ProtectedRoute>}/><Route path="/login" element={<Login/>}/><Route path="/register" element={<Register/>}/></Routes></main>{!isAdmin&&<><footer className="mt-16 border-t border-slate-200 bg-white py-6 text-center text-sm text-slate-500">JanSewa Citizen Service Portal <span className="mx-2">•</span> Your information is handled securely.</footer><Chatbot/></>}</div> }
-
+function App() { const token=localStorage.getItem('token'); const user=JSON.parse(localStorage.getItem('user')||'null'); const navigate=useNavigate(); const location=useLocation(); const [open,setOpen]=useState(false); const admin=user?.role==='admin'; const isAdmin=location.pathname==='/admin'; const logout=()=>{localStorage.removeItem('token');localStorage.removeItem('user');navigate('/login')}; return <div className={isAdmin?'min-h-screen bg-[#f5f6f8]':'min-h-screen bg-surface-bg flex flex-col'}><header className={`${isAdmin?'bg-white border-slate-200':'bg-white/90 backdrop-blur-md border-[#dce5ed]'} sticky top-0 z-40 border-b`}><div className="max-w-7xl mx-auto px-5 h-[68px] flex items-center justify-between gap-5"><Link to="/" className="flex items-center gap-2.5 text-slate-900 font-bold"><span className="grid place-items-center w-9 h-9 bg-primary-500 rounded-xl text-white shadow-sm"><Landmark className="w-5 h-5"/></span><span>JanSewa <span className="font-normal text-slate-500">Portal</span></span></Link><button aria-label="Toggle menu" onClick={()=>setOpen(!open)} className="md:hidden p-2 text-slate-600">{open?<X/>:<Menu/>}</button><nav className={`${open?'flex':'hidden'} md:flex absolute md:static top-[68px] inset-x-0 bg-white md:bg-transparent p-5 md:p-0 flex-col md:flex-row items-stretch md:items-center gap-1 md:gap-4 z-30 border-b md:border-0 border-slate-200 text-sm font-semibold text-slate-600`}><Link to="/" className="px-3 py-2 hover:text-primary-600">Home</Link>{!isAdmin&&<><Link to="/file" className="px-3 py-2 hover:text-primary-600">Register grievance</Link><Link to="/track" className="px-3 py-2 hover:text-primary-600">Track status</Link></>}{admin&&<Link to="/admin" className="px-3 py-2 hover:text-primary-600">Officer workspace</Link>}{token?<><button aria-label="Notifications" className="hidden md:block p-2 hover:text-primary-600"><Bell className="w-5 h-5"/></button><button onClick={logout} className="px-3 py-2 text-primary-600">Sign out</button></>:<Link to="/login" className="rounded-xl bg-primary-500 text-white px-4 py-2.5 text-center hover:bg-primary-600 shadow-sm">Sign in</Link>}</nav></div></header><main className={isAdmin?'w-full':'flex-1 w-full'}><Routes><Route path="/" element={<Home/>}/><Route path="/file" element={<ProtectedRoute><FileGrievance/></ProtectedRoute>}/><Route path="/track" element={<ProtectedRoute><TrackGrievance/></ProtectedRoute>}/><Route path="/admin" element={<ProtectedRoute><AdminDashboard/></ProtectedRoute>}/><Route path="/login" element={<Login/>}/><Route path="/register" element={<Register/>}/></Routes></main>{!isAdmin&&<><footer className="mt-16 border-t border-slate-200 bg-white py-6 text-center text-sm text-slate-500">JanSewa Citizen Service Portal <span className="mx-2">•</span> Your information is handled securely.</footer><Chatbot/></>}</div> }
 export default App;

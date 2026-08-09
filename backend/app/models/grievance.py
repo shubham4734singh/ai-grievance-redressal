@@ -9,6 +9,8 @@ class GrievanceCreate(BaseModel):
     category: Optional[str] = None
     contact_email: Optional[str] = None
     contact_phone: Optional[str] = None
+    contact_name: Optional[str] = None
+    telegram_chat_id: Optional[int] = None
 
 class StatusHistoryEntry(BaseModel):
     status: str
