@@ -144,11 +144,33 @@ const AdminDashboard = () => {
     }
   };
 
+  const [solutionPlan, setSolutionPlan] = useState('');
+  const [generatingPlan, setGeneratingPlan] = useState(false);
+
+  const handleGeneratePlan = async () => {
+    setGeneratingPlan(true);
+    setSolutionPlan('');
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`/api/grievances/track/${selectedGrievance.tracking_id}/solution`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!res.ok) throw new Error('Failed to generate plan');
+      const data = await res.json();
+      setSolutionPlan(data.solution_plan);
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setGeneratingPlan(false);
+    }
+  };
+
   const openUpdateModal = (g) => {
     setSelectedGrievance(g);
     setStatus(g.status);
     setPriority(g.priority);
     setNote('');
+    setSolutionPlan('');
   };
 
   const [activeTab, setActiveTab] = useState('grievances');
@@ -273,7 +295,7 @@ const AdminDashboard = () => {
                 <p className="text-gray-900">{selectedGrievance.description}</p>
               </div>
 
-              {selectedGrievance.citizen_details && (
+              {selectedGrievance.citizen_details ? (
                 <div className="mt-4 bg-gray-50 p-4 rounded-xl border border-gray-200">
                   <p className="text-sm text-gray-500 font-semibold uppercase mb-3">Citizen Profile (Auto-Linked)</p>
                   <div className="flex flex-col gap-3">
@@ -293,7 +315,24 @@ const AdminDashboard = () => {
                     </div>
                   </div>
                 </div>
-              )}
+              ) : selectedGrievance.contact_phone ? (
+                <div className="mt-4 bg-blue-50 p-4 rounded-xl border border-blue-200">
+                  <p className="text-sm text-blue-700 font-semibold uppercase mb-3 flex items-center gap-2">
+                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.539.818-1.084.508l-3-2.21-1.446 1.394c-.14.18-.357.223-.548.223l.216-3.05 5.546-5.02c.241-.213-.054-.334-.373-.121l-6.852 4.31-2.962-.924c-.643-.204-.657-.643.136-.953l11.57-4.458c.538-.196 1.006.128.832.941z"/></svg>
+                    Telegram Guest Profile
+                  </p>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-xs text-blue-600 uppercase font-bold tracking-wider mb-1">Name</p>
+                      <p className="font-semibold text-gray-900">{selectedGrievance.contact_name || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-blue-600 uppercase font-bold tracking-wider mb-1">Phone</p>
+                      <p className="font-semibold text-gray-900">{selectedGrievance.contact_phone}</p>
+                    </div>
+                  </div>
+                </div>
+              ) : null}
               <div>
                 <p className="text-sm text-gray-500 font-semibold uppercase">Location</p>
                 <p className="text-gray-900">{selectedGrievance.location}</p>
@@ -304,6 +343,27 @@ const AdminDashboard = () => {
                   <img src={selectedGrievance.evidence_url} alt="Evidence" className="rounded-xl max-h-64 object-cover" />
                 </div>
               )}
+              
+              <div className="mt-6 bg-indigo-50 p-4 rounded-xl border border-indigo-100">
+                <div className="flex justify-between items-center mb-2">
+                  <p className="text-sm text-indigo-700 font-bold flex items-center gap-2">
+                    ✨ AI Suggested Action Plan
+                  </p>
+                  {!solutionPlan && (
+                    <Button size="sm" onClick={handleGeneratePlan} loading={generatingPlan} className="bg-indigo-600 hover:bg-indigo-700 text-white border-0">
+                      Generate Plan
+                    </Button>
+                  )}
+                </div>
+                {solutionPlan && (
+                  <div className="mt-3 text-indigo-900 text-sm whitespace-pre-wrap font-medium">
+                    {solutionPlan}
+                  </div>
+                )}
+                {!solutionPlan && !generatingPlan && (
+                  <p className="text-sm text-indigo-500">Click to automatically generate a step-by-step resolution plan for your field officers.</p>
+                )}
+              </div>
             </div>
 
             <hr className="my-6 border-gray-200" />

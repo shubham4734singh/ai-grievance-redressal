@@ -166,6 +166,21 @@ async def update_grievance_status(
             message=update_data.note
         )
         await db.notifications.insert_one(notif.model_dump(by_alias=True))
+        
+    # Send Telegram Notification if they submitted via bot
+    telegram_chat_id = grievance.get("telegram_chat_id")
+    if telegram_chat_id:
+        import httpx
+        from app.core.config import settings
+        token = settings.TELEGRAM_BOT_TOKEN
+        if token:
+            try:
+                msg = f"*Update on your Grievance {tracking_id}*\n\nThe status has been updated to: *{update_data.status}*\n\n*Officer's Note:* {update_data.note}"
+                url = f"https://api.telegram.org/bot{token}/sendMessage"
+                async with httpx.AsyncClient() as client:
+                    await client.post(url, json={"chat_id": telegram_chat_id, "text": msg, "parse_mode": "Markdown"})
+            except Exception as e:
+                print(f"Failed to send telegram notification: {e}")
     
     updated_grievance = await db.grievances.find_one({"tracking_id": tracking_id})
     updated_grievance["id"] = str(updated_grievance.pop("_id"))
@@ -209,3 +224,26 @@ async def get_analytics(
         "category_distribution": {item["_id"] or "Uncategorized": item["count"] for item in data["by_category"]},
         "priority_distribution": {item["_id"]: item["count"] for item in data["by_priority"]}
     }
+
+from app.services.nlp import generate_solution_plan
+
+@router.get("/track/{tracking_id}/solution")
+async def get_grievance_solution(
+    tracking_id: str,
+    db: AsyncIOMotorDatabase = Depends(get_database),
+    current_user: dict = Depends(get_current_user)
+):
+    if current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Only admins can request AI solutions")
+        
+    grievance = await db.grievances.find_one({"tracking_id": tracking_id})
+    if not grievance:
+        raise HTTPException(status_code=404, detail="Grievance not found")
+        
+    plan = await generate_solution_plan(
+        description=grievance.get("description", ""),
+        department=grievance.get("department", "Unassigned"),
+        priority=grievance.get("priority", "Medium")
+    )
+    
+    return {"solution_plan": plan}
