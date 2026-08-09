@@ -27,7 +27,7 @@ export default {
         },
       },
       fontFamily: {
-        sans: ['Inter', 'Noto Sans', 'sans-serif'],
+        sans: ['Public Sans', 'Noto Sans', 'sans-serif'],
       },
     },
   },

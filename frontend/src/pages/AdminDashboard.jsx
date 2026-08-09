@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Search, SlidersHorizontal, ClipboardList, Clock3, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { StatusBadge } from '../components/ui/StatusBadge';
@@ -94,6 +95,8 @@ const AdminDashboard = () => {
   const [note, setNote] = useState('');
   const [priority, setPriority] = useState('');
   const [updating, setUpdating] = useState(false);
+  const [query, setQuery] = useState('');
+  const [filter, setFilter] = useState('All');
 
   const fetchGrievances = async () => {
     try {
@@ -153,6 +156,8 @@ const AdminDashboard = () => {
   if (loading) return <div className="p-8 text-center text-gray-500">Loading Dashboard...</div>;
   if (error) return <div className="p-8 text-center text-red-500">{error}</div>;
 
+  const shown = grievances.filter(g => (filter === 'All' || g.status === filter) && `${g.tracking_id} ${g.description} ${g.location}`.toLowerCase().includes(query.toLowerCase()));
+  const stats = [{ label:'Open cases', value: grievances.filter(g=>g.status !== 'Resolved').length, icon:ClipboardList, tone:'text-primary-600 bg-primary-50' }, { label:'In progress', value: grievances.filter(g=>g.status === 'In Progress').length, icon:Clock3, tone:'text-amber-700 bg-amber-50' }, { label:'Resolved', value: grievances.filter(g=>g.status === 'Resolved').length, icon:CheckCircle2, tone:'text-green-700 bg-green-50' }, { label:'High priority', value: grievances.filter(g=>['High','Urgent'].includes(g.priority)).length, icon:AlertTriangle, tone:'text-red-700 bg-red-50' }];
   return (
     <div className="max-w-7xl mx-auto mt-8">
       <div className="flex justify-between items-center mb-6">
@@ -198,7 +203,7 @@ const AdminDashboard = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {grievances.map(g => (
+              {shown.map(g => (
                 <tr key={g.id} className="hover:bg-gray-50 transition-colors">
                   <td className="p-4 font-mono text-sm text-gray-600">{g.tracking_id}</td>
                   <td className="p-4 text-sm text-gray-600">{new Date(g.created_at).toLocaleDateString()}</td>
@@ -210,7 +215,7 @@ const AdminDashboard = () => {
                   </td>
                 </tr>
               ))}
-              {grievances.length === 0 && (
+              {shown.length === 0 && (
                 <tr>
                   <td colSpan="6" className="p-8 text-center text-gray-500">No grievances found.</td>
                 </tr>

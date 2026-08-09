@@ -1,64 +1,6 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Card } from '../components/ui/Card';
-import { Button } from '../components/ui/Button';
-import { Input } from '../components/ui/Input';
-
-const Register = () => {
-  const [formData, setFormData] = useState({ full_name: '', email: '', phone: '', password: '' });
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const navigate = useNavigate();
-
-  const handleChange = (e) => setFormData({ ...formData, [e.target.id]: e.target.value });
-
-  const handleRegister = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setError('');
-
-    try {
-      const response = await fetch('/api/auth/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
-      });
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.detail || 'Registration failed');
-      }
-
-      // Auto-login or redirect to login
-      navigate('/login');
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div className="flex justify-center py-12">
-      <Card className="w-full max-w-md" title="Create an Account">
-        <form onSubmit={handleRegister} className="space-y-4">
-          <Input label="Full Name" id="full_name" required onChange={handleChange} />
-          <Input label="Email Address" id="email" type="email" required onChange={handleChange} />
-          <Input label="Phone Number" id="phone" type="tel" onChange={handleChange} />
-          <Input label="Password" id="password" type="password" required onChange={handleChange} />
-          
-          {error && <div className="text-status-urgent text-sm bg-red-50 p-3 rounded-md">{error}</div>}
-          
-          <Button type="submit" loading={loading} fullWidth>
-            Register
-          </Button>
-        </form>
-        <p className="mt-6 text-center text-sm text-gray-600">
-          Already have an account? <a href="/login" className="text-primary-500 font-semibold hover:underline">Log in</a>
-        </p>
-      </Card>
-    </div>
-  );
-};
-
+import { useNavigate, Link } from 'react-router-dom';
+import { ArrowRight, CheckCircle2, UserPlus } from 'lucide-react';
+import { Card } from '../components/ui/Card'; import { Button } from '../components/ui/Button'; import { Input } from '../components/ui/Input';
+const Register = () => { const [formData, setFormData] = useState({ full_name:'', email:'', phone:'', password:'' }); const [loading,setLoading]=useState(false); const [error,setError]=useState(''); const navigate=useNavigate(); const change=e=>setFormData({...formData,[e.target.id]:e.target.value}); const submit=async e=>{e.preventDefault();setLoading(true);setError('');try{const r=await fetch('/api/auth/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(formData)});const t=await r.text();let d={};try{d=t?JSON.parse(t):{}}catch{}if(!r.ok)throw new Error(d.detail||'We could not create your account. Please try again.');navigate('/login')}catch(err){setError(err.message)}finally{setLoading(false)}}; return <div className="max-w-xl mx-auto px-5 py-10 md:py-14"><div className="text-center"><div className="inline-flex p-3 rounded-xl bg-primary-50 text-primary-600"><UserPlus/></div><p className="mt-5 text-sm font-bold uppercase tracking-wide text-primary-600">Get started</p><h1 className="mt-1 text-3xl font-bold text-slate-900">Create your JanSewa account</h1><p className="mt-2 text-slate-600">One account helps you track every request and update.</p></div><Card className="mt-7"><form onSubmit={submit} className="space-y-5"><Input label="Full name" id="full_name" required onChange={change} placeholder="Enter your full name"/><Input label="Email address" id="email" type="email" required onChange={change} placeholder="name@example.com"/><Input label="Phone number" id="phone" type="tel" onChange={change} placeholder="Optional, for service updates"/><Input label="Create a password" id="password" type="password" required onChange={change} placeholder="At least 8 characters"/>{error&&<div role="alert" className="text-status-urgent text-sm bg-red-50 border border-red-100 p-3 rounded-lg">{error}</div>}<Button type="submit" loading={loading} fullWidth iconRight={<ArrowRight className="w-4 h-4"/>}>Create secure account</Button></form></Card><p className="mt-6 text-center text-sm text-slate-600">Already registered? <Link to="/login" className="font-bold text-primary-600 hover:underline">Sign in</Link></p></div>};
 export default Register;
