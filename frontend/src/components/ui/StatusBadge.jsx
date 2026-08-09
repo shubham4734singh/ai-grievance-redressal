@@ -26,7 +26,8 @@ const StatusBadge = ({ status, className }) => {
     },
   };
 
-  const { colors, icon: Icon, label } = config[status] || config.progress;
+  const normalized = { 'Submitted': 'progress', 'In Progress': 'progress', 'Resolved': 'resolved', 'Rejected': 'closed', 'Closed': 'closed' }[status] || status;
+  const { colors, icon: Icon, label } = config[normalized] || config.progress;
 
   return (
     <span className={cn('inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold', colors, className)}>

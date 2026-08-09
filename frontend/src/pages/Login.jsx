@@ -1,75 +1,12 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Card } from '../components/ui/Card';
+import { useNavigate, Link } from 'react-router-dom';
+import { ArrowRight, CheckCircle2, LockKeyhole, Mail, ShieldCheck } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 
 const Login = () => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const navigate = useNavigate();
-
-  const handleLogin = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setError('');
-
-    try {
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      });
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.detail || 'Login failed');
-      }
-
-      const data = await response.json();
-      localStorage.setItem('token', data.access_token);
-      localStorage.setItem('user', JSON.stringify(data.user));
-      navigate('/');
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div className="flex justify-center py-12">
-      <Card className="w-full max-w-md" title="Login to your account">
-        <form onSubmit={handleLogin} className="space-y-4">
-          <Input 
-            label="Email Address" 
-            type="email" 
-            value={email} 
-            onChange={e => setEmail(e.target.value)} 
-            required 
-          />
-          <Input 
-            label="Password" 
-            type="password" 
-            value={password} 
-            onChange={e => setPassword(e.target.value)} 
-            required 
-          />
-          
-          {error && <div className="text-status-urgent text-sm bg-red-50 p-3 rounded-md">{error}</div>}
-          
-          <Button type="submit" loading={loading} fullWidth>
-            Sign In
-          </Button>
-        </form>
-        <p className="mt-6 text-center text-sm text-gray-600">
-          Don't have an account? <a href="/register" className="text-primary-500 font-semibold hover:underline">Register here</a>
-        </p>
-      </Card>
-    </div>
-  );
+  const [email, setEmail] = useState(''); const [password, setPassword] = useState(''); const [loading, setLoading] = useState(false); const [error, setError] = useState(''); const navigate = useNavigate();
+  const handleLogin = async e => { e.preventDefault(); setLoading(true); setError(''); try { const response = await fetch('/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }) }); const text = await response.text(); let data; try { data = text ? JSON.parse(text) : {}; } catch { data = {}; } if (!response.ok) throw new Error(data.detail || `Login failed (server returned ${response.status}). Please confirm the backend is running.`); if (!data.access_token || !data.user) throw new Error('Login response was incomplete. Please try again.'); localStorage.setItem('token', data.access_token); localStorage.setItem('user', JSON.stringify(data.user)); navigate(data.user.role === 'admin' ? '/admin' : '/'); } catch (err) { setError(err.message); } finally { setLoading(false); } };
+  return <div className="min-h-[calc(100vh-105px)] grid lg:grid-cols-2"><section className="hidden lg:flex bg-primary-600 px-14 py-16 text-white relative overflow-hidden"><div className="absolute w-80 h-80 rounded-full border border-white/15 -right-20 -top-24"/><div className="absolute w-96 h-96 rounded-full border border-white/10 -left-36 bottom-[-160px]"/><div className="max-w-md relative"><div className="inline-flex p-3 bg-white/10 rounded-xl"><ShieldCheck className="w-7 h-7"/></div><p className="mt-8 text-primary-100 font-semibold">JANSEWA CITIZEN PORTAL</p><h1 className="mt-3 text-4xl leading-tight font-bold">A clearer path to public services.</h1><p className="mt-5 leading-7 text-primary-100">Keep your service requests, progress updates and important information in one secure place.</p><div className="mt-10 space-y-4">{['File a grievance in just a few steps','Receive clear status updates','Get help whenever you need it'].map(item=><div key={item} className="flex items-center gap-3"><CheckCircle2 className="w-5 h-5 text-[#a7d7c1]"/><span>{item}</span></div>)}</div></div></section><section className="flex items-center justify-center px-5 py-12 bg-[#f8fafc]"><div className="w-full max-w-md"><div className="lg:hidden text-center mb-8"><div className="inline-flex p-3 bg-primary-50 rounded-xl text-primary-600"><LockKeyhole/></div></div><p className="text-sm font-bold tracking-wide text-primary-600 uppercase">Welcome back</p><h1 className="mt-2 text-3xl font-bold text-slate-900">Sign in to your account</h1><p className="mt-2 text-slate-600">Access your grievances and updates securely.</p><form onSubmit={handleLogin} className="mt-8 rounded-2xl bg-white border border-slate-200 p-6 md:p-7 shadow-sm space-y-5"><Input label="Email address" type="email" value={email} onChange={e => setEmail(e.target.value)} required placeholder="name@example.com"/><Input label="Password" type="password" value={password} onChange={e => setPassword(e.target.value)} required placeholder="Enter your password"/>{error && <div role="alert" className="text-status-urgent text-sm bg-red-50 border border-red-100 p-3 rounded-lg">{error}</div>}<Button type="submit" loading={loading} fullWidth iconRight={<ArrowRight className="w-4 h-4"/>}>Sign in securely</Button></form><p className="mt-6 text-center text-sm text-slate-600">New to JanSewa? <Link to="/register" className="text-primary-600 font-bold hover:underline">Create an account</Link></p></div></section></div>;
 };
-
 export default Login;

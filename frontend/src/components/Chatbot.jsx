@@ -68,6 +68,12 @@ const Chatbot = () => {
     }
   }, [messages, isOpen]);
 
+  useEffect(() => {
+    const openAssistant = () => setIsOpen(true);
+    window.addEventListener('open-help-assistant', openAssistant);
+    return () => window.removeEventListener('open-help-assistant', openAssistant);
+  }, []);
+
   const handleSend = async (e) => {
     e.preventDefault();
     if (!input.trim()) return;
@@ -105,7 +111,8 @@ const Chatbot = () => {
       {/* Floating Action Button */}
       <button
         onClick={() => setIsOpen(true)}
-        className={`fixed bottom-6 right-6 w-16 h-16 bg-primary-600 text-white rounded-full shadow-lg hover:bg-primary-700 hover:scale-105 transition-all flex items-center justify-center z-40 ${isOpen ? 'hidden' : 'block'}`}
+        aria-label="Open help assistant"
+        className={`fixed bottom-5 right-5 md:bottom-6 md:right-6 w-14 h-14 bg-primary-600 text-white rounded-full shadow-[0_8px_24px_rgba(23,61,112,.35)] hover:bg-primary-700 hover:scale-105 transition-all flex items-center justify-center z-40 ${isOpen ? 'hidden' : 'block'}`}
       >
         <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
@@ -114,7 +121,7 @@ const Chatbot = () => {
 
       {/* Chat Window */}
       {isOpen && (
-        <div className="fixed bottom-6 right-6 w-96 h-[32rem] bg-white rounded-2xl shadow-2xl flex flex-col z-50 border border-gray-200 overflow-hidden animate-in slide-in-from-bottom-5">
+        <div className="fixed inset-x-3 bottom-3 md:inset-x-auto md:bottom-6 md:right-6 w-auto md:w-96 h-[min(32rem,calc(100vh-1.5rem))] bg-white rounded-2xl shadow-2xl flex flex-col z-50 border border-gray-200 overflow-hidden">
           {/* Header */}
           <div className="bg-primary-600 text-white p-4 flex justify-between items-center">
             <div className="flex items-center gap-3">
@@ -123,7 +130,7 @@ const Chatbot = () => {
               </div>
               <div>
                 <h3 className="font-bold">Grievance Assistant</h3>
-                <p className="text-xs text-primary-100">Powered by Llama 3</p>
+                <p className="text-xs text-primary-100">Here to guide you, simply</p>
               </div>
             </div>
             <button onClick={() => setIsOpen(false)} className="text-white hover:text-gray-200 p-1">

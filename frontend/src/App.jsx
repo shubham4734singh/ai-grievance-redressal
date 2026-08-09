@@ -1,74 +1,36 @@
-import { Routes, Route, useNavigate } from 'react-router-dom';
-import Login from './pages/Login';
-import Register from './pages/Register';
-import FileGrievance from './pages/FileGrievance';
-import TrackGrievance from './pages/TrackGrievance';
-import AdminDashboard from './pages/AdminDashboard';
-import ProtectedRoute from './components/ProtectedRoute';
-import Chatbot from './components/Chatbot';
+import { Routes, Route, useNavigate, Link, useLocation } from 'react-router-dom';
+import { Bell, ChevronDown, ChevronLeft, ChevronRight, FilePlus2, Landmark, Menu, Search, ShieldCheck, X, CircleCheck, Headphones, MapPin, MessageCircle, Clock3, Building2, ArrowRight, CheckCircle2, Sparkles, UserRound, KeyRound, Mail, Phone, LogOut } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import Login from './pages/Login'; import Register from './pages/Register'; import FileGrievance from './pages/FileGrievance'; import TrackGrievance from './pages/TrackGrievance'; import AdminDashboard from './pages/AdminDashboard'; import ProtectedRoute from './components/ProtectedRoute'; import Chatbot from './components/Chatbot';
 
-// Placeholder Pages
-const Home = () => (
-  <div className="p-8 max-w-4xl mx-auto text-center mt-20">
-    <h1 className="text-4xl md:text-5xl font-bold text-gray-900">Resolve your issues faster with AI.</h1>
-    <p className="mt-6 text-xl text-gray-600">The transparent, intelligent, and seamless way to file and track grievances with government services.</p>
-    <div className="mt-10 flex gap-4 justify-center">
-      <a href="/file" className="bg-primary-500 text-white px-8 py-3 rounded-xl font-bold hover:bg-primary-600">File a Grievance</a>
-      <a href="/track" className="bg-white border-2 border-primary-500 text-primary-500 px-8 py-3 rounded-xl font-bold hover:bg-primary-50">Track Status</a>
-    </div>
-  </div>
-);
+const OFFICER_EMAIL = 'shubham.cybersky@gmail.com';
 
-function App() {
-  const token = localStorage.getItem('token');
-  const user = JSON.parse(localStorage.getItem('user') || 'null');
-  const navigate = useNavigate();
+const slides = [
+  { image: '/img1.png', eyebrow: 'Step 01 · Detect', title: 'See a civic issue?', accent: 'Make it visible.', copy: 'Spot a problem in your neighbourhood and document it in a moment. Your report is the first step toward a better public space.', cta: 'Report an issue', to: '/file', icon: FilePlus2 },
+  { image: '/img2.png', eyebrow: 'Step 02 · Register', title: 'Turn an observation', accent: 'into accountable action.', copy: 'Submit a clear, complete complaint through one trusted digital channel and receive a unique tracking reference immediately.', cta: 'Register complaint', to: '/file', icon: CheckCircle2 },
+  { image: '/img3.png', eyebrow: 'Step 03 · Resolve', title: 'Track progress until', accent: 'the work is done.', copy: 'Follow every important update, from assignment to resolution, and know when your concern has been addressed.', cta: 'Track complaint', to: '/track', icon: Search },
+];
 
-  const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    navigate('/login');
-  };
+const Home = () => {
+  const [active, setActive] = useState(0);
+  useEffect(() => { const timer = setInterval(() => setActive(i => (i + 1) % slides.length), 5000); return () => clearInterval(timer); }, []);
+  const slide = slides[active]; const SlideIcon = slide.icon;
+  const previous = () => setActive(i => (i - 1 + slides.length) % slides.length);
+  const next = () => setActive(i => (i + 1) % slides.length);
+  return <div className="overflow-hidden pb-16">
+    <section className="hero-carousel relative isolate overflow-hidden bg-[#09284a] text-white">
+      {slides.map((item, index) => <div key={item.image} aria-hidden="true" className={`hero-image absolute inset-0 ${index === active ? 'hero-image-active' : ''}`} style={{ backgroundImage: `url(${item.image})` }}/>) }
+      <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(3,20,41,.9)_0%,rgba(5,31,58,.72)_45%,rgba(3,18,34,.34)_100%)]"/><div className="absolute inset-0 hero-grid opacity-20"/><div className="hero-orb hero-orb-one"/>
+      <div className="relative max-w-7xl mx-auto min-h-[570px] md:min-h-[640px] px-5 py-16 md:py-20 flex items-center">
+        <div className="max-w-3xl animate-rise" key={active}><div className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/10 px-3.5 py-2 text-xs font-bold tracking-[.12em] uppercase backdrop-blur-md"><Sparkles className="w-3.5 h-3.5 text-[#7de0bd]"/>{slide.eyebrow}</div><h1 className="mt-6 text-[2.75rem] sm:text-6xl md:text-7xl leading-[.98] font-bold tracking-[-.055em]">{slide.title}<br/><span className="text-[#8ee4c5]">{slide.accent}</span></h1><p className="mt-6 max-w-xl text-lg md:text-xl leading-8 text-blue-50/90">{slide.copy}</p><div className="mt-8 flex flex-col sm:flex-row gap-3"><Link to={slide.to} className="button-lift inline-flex min-h-[54px] items-center justify-center gap-2 rounded-xl bg-white px-6 font-bold text-[#123d6f] shadow-[0_12px_28px_rgba(0,0,0,.2)] hover:bg-[#dff8ed]"><SlideIcon className="w-5 h-5"/>{slide.cta}<ArrowRight className="w-4 h-4"/></Link><Link to="/track" className="button-lift inline-flex min-h-[54px] items-center justify-center gap-2 rounded-xl border border-white/35 bg-white/10 px-6 font-bold text-white backdrop-blur-sm hover:bg-white/20"><Search className="w-5 h-5"/> Track status</Link></div><div className="mt-10 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm font-medium text-blue-100"><span className="flex items-center gap-1.5"><CircleCheck className="w-4 h-4 text-[#7de0bd]"/> Secure by design</span><span className="flex items-center gap-1.5"><CircleCheck className="w-4 h-4 text-[#7de0bd]"/> Multilingual support</span><span className="flex items-center gap-1.5"><CircleCheck className="w-4 h-4 text-[#7de0bd]"/> Transparent updates</span></div></div>
+        <div className="absolute right-5 bottom-8 md:bottom-12 flex items-center gap-3"><button aria-label="Previous slide" onClick={previous} className="carousel-control"><ChevronLeft className="w-5 h-5"/></button><div className="flex gap-2">{slides.map((item,index)=><button key={item.image} aria-label={`Go to slide ${index+1}`} onClick={()=>setActive(index)} className={`carousel-dot ${active===index?'carousel-dot-active':''}`}/>)}</div><button aria-label="Next slide" onClick={next} className="carousel-control"><ChevronRight className="w-5 h-5"/></button></div>
+      </div>
+    </section>
+    <section className="relative z-10 max-w-6xl mx-auto -mt-8 px-5"><div className="grid sm:grid-cols-3 overflow-hidden rounded-2xl border border-white/70 bg-white/90 shadow-[0_18px_42px_rgba(14,52,89,.14)] backdrop-blur-xl">{[['01','Detect problem','Share a photo, location, or voice note.'],['02','Register complaint','Get a secure tracking reference.'],['03','Get resolution','Follow action through to closure.']].map(([number,title,copy])=><div key={number} className="journey-step flex gap-4 px-5 py-5 md:px-7"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-primary-50 text-sm font-bold text-primary-600">{number}</span><div><h2 className="font-bold text-slate-900">{title}</h2><p className="mt-1 text-sm leading-5 text-slate-500">{copy}</p></div></div>)}</div></section>
+  <section className="max-w-7xl mx-auto px-5 py-16"><div className="flex flex-col md:flex-row md:items-end justify-between gap-4"><div><p className="text-sm font-bold tracking-wider text-primary-600">CITIZEN SERVICES</p><h2 className="mt-2 text-3xl font-bold tracking-tight text-slate-900">What would you like to do?</h2></div><p className="text-slate-500 max-w-sm md:text-right">Everything you need to register, track, and understand your request.</p></div><div className="mt-8 grid md:grid-cols-3 gap-5">{[[FilePlus2,'Report an issue','Roads, water, sanitation, public services and more.','/file','bg-[#eff7ff] text-[#1762a6]'],[Search,'Check an update','Use your tracking ID to see where your case stands.','/track','bg-[#f2f8f3] text-[#318052'],[Headphones,'Get help','Ask the support assistant in your language.','#help','bg-[#fff7eb] text-[#b67112']].map(([Icon,title,text,to,tone])=><Link key={title} to={to} className="service-card group rounded-2xl bg-white border border-slate-200 p-6"><div className={`w-12 h-12 grid place-items-center rounded-xl ${tone}`}><Icon className="w-6 h-6"/></div><h3 className="mt-6 flex items-center justify-between font-bold text-lg text-slate-900">{title}<ChevronRight className="w-5 h-5 text-primary-500 group-hover:translate-x-1 transition-transform"/></h3><p className="mt-2 text-sm leading-6 text-slate-600">{text}</p><span className="inline-flex mt-5 text-sm font-bold text-primary-600">Open service <ChevronRight className="ml-1 w-4 h-4"/></span></Link>)}</div></section>
+  <section className="max-w-7xl mx-auto px-5"><div className="rounded-3xl bg-[#0f355e] px-7 py-9 md:p-12 text-white grid md:grid-cols-[1fr_auto] gap-7 items-center overflow-hidden relative"><div className="absolute right-0 inset-y-0 w-1/2 opacity-15 hero-grid"/><div className="relative"><p className="text-blue-200 font-bold text-sm tracking-wider">NEED ASSISTANCE?</p><h2 className="mt-2 text-3xl font-bold">We&apos;re here to make it easier.</h2><p className="mt-3 text-blue-100 max-w-lg">Get step-by-step help with your grievance from our guided support assistant.</p></div><button onClick={()=>window.dispatchEvent(new Event('open-help-assistant'))} className="relative button-lift inline-flex items-center justify-center gap-2 rounded-xl bg-white text-primary-600 px-6 min-h-[50px] font-bold"><MessageCircle className="w-5 h-5"/> Talk to support</button></div></section>
+</div>;
+};
 
-  return (
-    <div className="min-h-screen bg-surface-bg flex flex-col">
-      {/* Basic Nav */}
-      <nav className="bg-primary-500 text-white p-4 shadow-sm">
-        <div className="max-w-7xl mx-auto flex gap-4 items-center">
-          <a href="/" className="font-bold hover:text-primary-100">Home</a>
-          <a href="/file" className="hover:text-primary-100">File Grievance</a>
-          <a href="/track" className="hover:text-primary-100">Track Status</a>
-          {user?.role === 'admin' && (
-            <a href="/admin" className="font-semibold text-yellow-300 hover:text-yellow-100">Admin Dashboard</a>
-          )}
-          <div className="flex-1"></div>
-          {token ? (
-            <div className="flex items-center gap-4">
-              <span className="text-primary-100 text-sm">Hello, {user?.full_name}</span>
-              <button onClick={handleLogout} className="hover:text-primary-100">Logout</button>
-            </div>
-          ) : (
-            <a href="/login" className="hover:text-primary-100">Login</a>
-          )}
-        </div>
-      </nav>
-
-      {/* Main Content Area */}
-      <main className="flex-1 w-full max-w-7xl mx-auto md:p-6">
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/file" element={<ProtectedRoute><FileGrievance /></ProtectedRoute>} />
-          <Route path="/track" element={<ProtectedRoute><TrackGrievance /></ProtectedRoute>} />
-          <Route path="/admin" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-        </Routes>
-      </main>
-
-      {/* Global AI Chatbot */}
-      <Chatbot />
-    </div>
-  );
-}
-
+function App() { const token=localStorage.getItem('token'); const user=JSON.parse(localStorage.getItem('user')||'null'); const navigate=useNavigate(); const location=useLocation(); const [open,setOpen]=useState(false); const admin=user?.role==='admin'; const isAdmin=location.pathname==='/admin'; const logout=()=>{localStorage.removeItem('token');localStorage.removeItem('user');navigate('/login')}; return <div className={isAdmin?'min-h-screen bg-[#f5f6f8]':'min-h-screen bg-surface-bg flex flex-col'}><header className={`${isAdmin?'bg-white border-slate-200':'bg-white/90 backdrop-blur-md border-[#dce5ed]'} sticky top-0 z-40 border-b`}><div className="max-w-7xl mx-auto px-5 h-[68px] flex items-center justify-between gap-5"><Link to="/" className="flex items-center gap-2.5 text-slate-900 font-bold"><span className="grid place-items-center w-9 h-9 bg-primary-500 rounded-xl text-white shadow-sm"><Landmark className="w-5 h-5"/></span><span>JanSewa <span className="font-normal text-slate-500">Portal</span></span></Link><button aria-label="Toggle menu" onClick={()=>setOpen(!open)} className="md:hidden p-2 text-slate-600">{open?<X/>:<Menu/>}</button><nav className={`${open?'flex':'hidden'} md:flex absolute md:static top-[68px] inset-x-0 bg-white md:bg-transparent p-5 md:p-0 flex-col md:flex-row items-stretch md:items-center gap-1 md:gap-4 z-30 border-b md:border-0 border-slate-200 text-sm font-semibold text-slate-600`}><Link to="/" className="px-3 py-2 hover:text-primary-600">Home</Link>{!isAdmin&&<><Link to="/file" className="px-3 py-2 hover:text-primary-600">Register grievance</Link><Link to="/track" className="px-3 py-2 hover:text-primary-600">Track status</Link></>}{admin&&<Link to="/admin" className="px-3 py-2 hover:text-primary-600">Officer workspace</Link>}{token?<><button aria-label="Notifications" className="hidden md:block p-2 hover:text-primary-600"><Bell className="w-5 h-5"/></button><button onClick={logout} className="px-3 py-2 text-primary-600">Sign out</button></>:<Link to="/login" className="rounded-xl bg-primary-500 text-white px-4 py-2.5 text-center hover:bg-primary-600 shadow-sm">Sign in</Link>}</nav></div></header><main className={isAdmin?'w-full':'flex-1 w-full'}><Routes><Route path="/" element={<Home/>}/><Route path="/file" element={<ProtectedRoute><FileGrievance/></ProtectedRoute>}/><Route path="/track" element={<ProtectedRoute><TrackGrievance/></ProtectedRoute>}/><Route path="/admin" element={<ProtectedRoute><AdminDashboard/></ProtectedRoute>}/><Route path="/login" element={<Login/>}/><Route path="/register" element={<Register/>}/></Routes></main>{!isAdmin&&<><footer className="mt-16 border-t border-slate-200 bg-white py-6 text-center text-sm text-slate-500">JanSewa Citizen Service Portal <span className="mx-2">•</span> Your information is handled securely.</footer><Chatbot/></>}</div> }
 export default App;
