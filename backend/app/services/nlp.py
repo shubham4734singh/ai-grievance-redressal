@@ -10,10 +10,12 @@ async def categorize_grievance(description: str) -> dict:
     Respond ONLY with a valid JSON object (no markdown, no backticks, no extra text).
     
     Fields required in JSON:
-    - category: string (e.g., Water Supply, Electricity, Roads, Sanitation, Public Safety, etc.)
-    - department: string (MUST be EXACTLY one of these 5 options: "Water Department", "Electricity Board", "Roads & Transport", "Sanitation & Waste", "Police & Security")
+    - category: string (MUST be one of: "Water Supply", "Electricity", "Roads", "Sanitation", "Public Safety")
+    - department: string (MUST be EXACTLY one of these 5 options: "Water Department", "Electricity Board", "Roads & Transport", "Sanitation & Waste", "Police & Security"). Ignore user's own suggested department if it contradicts the actual issue.
     - priority: string (Choose one: Low, Medium, High, Urgent. Urgent is for life-threatening or severe issues)
     - sentiment: string (Choose one: Positive, Neutral, Negative, Angry)
+    
+    CRITICAL: Carefully analyze the ROOT CAUSE of the problem (e.g., if it says 'electrical problem', it MUST go to 'Electricity Board' and 'Electricity', regardless of the user saying 'public safety'). Focus on the actual issue, ignore typos.
     
     Description: {description}
     """
