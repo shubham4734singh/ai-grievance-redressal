@@ -1,5 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
+import ReactMarkdown from 'react-markdown';
 import { Card } from './ui/Card';
+import './Chatbot.css';
 
 const Chatbot = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -144,8 +146,8 @@ const Chatbot = () => {
           <div className="flex-1 p-4 overflow-y-auto bg-gray-50 flex flex-col gap-4">
             {messages.map((msg, idx) => (
               <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                <div className={`max-w-[80%] p-3 rounded-2xl ${msg.role === 'user' ? 'bg-primary-600 text-white rounded-br-sm' : 'bg-white border border-gray-200 text-gray-800 rounded-bl-sm shadow-sm'}`}>
-                  {msg.content}
+                <div className={`max-w-[80%] p-3 rounded-2xl prose prose-sm ${msg.role === 'user' ? 'bg-primary-600 text-white rounded-br-sm' : 'bg-white border border-gray-200 text-gray-800 rounded-bl-sm shadow-sm'}`}>
+                  <ReactMarkdown>{msg.content}</ReactMarkdown>
                 </div>
               </div>
             ))}

@@ -4,12 +4,92 @@ import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { StatusBadge } from '../components/ui/StatusBadge';
 
+const ManageStaff = () => {
+  const [formData, setFormData] = useState({ full_name: '', email: '', password: '', department: 'Water' });
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState('');
+  const [error, setError] = useState('');
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setSuccess('');
+    setError('');
+    
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch('/api/auth/create-admin', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(formData)
+      });
+      
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || 'Failed to create staff account');
+      
+      setSuccess(`Successfully created Admin account for ${data.full_name} (${data.department})`);
+      setFormData({ full_name: '', email: '', password: '', department: 'Water' });
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Card className="max-w-2xl">
+      <div className="p-6">
+        <h2 className="text-xl font-bold mb-6">Create New Department Admin</h2>
+        
+        {success && <div className="p-4 mb-6 bg-green-50 text-green-700 rounded-xl border border-green-200 font-bold">{success}</div>}
+        {error && <div className="p-4 mb-6 bg-red-50 text-red-700 rounded-xl border border-red-200 font-bold">{error}</div>}
+        
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1">Full Name</label>
+              <input type="text" required value={formData.full_name} onChange={e => setFormData({...formData, full_name: e.target.value})} className="w-full px-4 py-2 border rounded-xl" />
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1">Email</label>
+              <input type="email" required value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} className="w-full px-4 py-2 border rounded-xl" />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1">Temporary Password</label>
+              <input type="password" required value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} className="w-full px-4 py-2 border rounded-xl" />
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1">Department Scope</label>
+              <select value={formData.department} onChange={e => setFormData({...formData, department: e.target.value})} className="w-full px-4 py-2 border rounded-xl bg-white">
+                <option value="Water">Water Department</option>
+                <option value="Electricity">Electricity Board</option>
+                <option value="Roads">Roads & Transport</option>
+                <option value="Sanitation">Sanitation & Waste</option>
+                <option value="Police">Police & Security</option>
+              </select>
+            </div>
+          </div>
+          <Button type="submit" loading={loading} className="w-full mt-4">Create Admin Account</Button>
+        </form>
+      </div>
+    </Card>
+  );
+};
+
 const AdminDashboard = () => {
   const [grievances, setGrievances] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [selectedGrievance, setSelectedGrievance] = useState(null);
   
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const departmentName = user.department === 'All' ? 'Central' : user.department || 'Central';
+
   // Status Update Form State
   const [status, setStatus] = useState('');
   const [note, setNote] = useState('');
@@ -71,22 +151,45 @@ const AdminDashboard = () => {
     setNote('');
   };
 
+  const [activeTab, setActiveTab] = useState('grievances');
+
   if (loading) return <div className="p-8 text-center text-gray-500">Loading Dashboard...</div>;
   if (error) return <div className="p-8 text-center text-red-500">{error}</div>;
 
   const shown = grievances.filter(g => (filter === 'All' || g.status === filter) && `${g.tracking_id} ${g.description} ${g.location}`.toLowerCase().includes(query.toLowerCase()));
   const stats = [{ label:'Open cases', value: grievances.filter(g=>g.status !== 'Resolved').length, icon:ClipboardList, tone:'text-primary-600 bg-primary-50' }, { label:'In progress', value: grievances.filter(g=>g.status === 'In Progress').length, icon:Clock3, tone:'text-amber-700 bg-amber-50' }, { label:'Resolved', value: grievances.filter(g=>g.status === 'Resolved').length, icon:CheckCircle2, tone:'text-green-700 bg-green-50' }, { label:'High priority', value: grievances.filter(g=>['High','Urgent'].includes(g.priority)).length, icon:AlertTriangle, tone:'text-red-700 bg-red-50' }];
   return (
-    <div className="max-w-[1440px] mx-auto px-5 py-7">
-      <div className="flex justify-between items-center mb-7">
+    <div className="max-w-7xl mx-auto mt-8">
+      <div className="flex justify-between items-center mb-6">
         <div>
-          <p className="text-xs font-bold tracking-wide uppercase text-primary-600">Grievance Management System</p><h1 className="text-2xl font-bold text-gray-900 mt-1">Case overview</h1>
-          <p className="text-gray-600 mt-1">Review, assign, and update citizen requests.</p>
+          <h1 className="text-3xl font-bold text-gray-900">{departmentName} Dashboard</h1>
+          <p className="text-gray-600 mt-2">Manage and resolve citizen grievances efficiently.</p>
         </div>
       </div>
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">{stats.map(({label,value,icon:Icon,tone})=><div key={label} className="bg-white border border-slate-200 rounded-md p-4 flex items-center gap-3"><div className={`p-2 rounded ${tone}`}><Icon className="w-5 h-5"/></div><div><p className="text-xs text-slate-500">{label}</p><p className="text-xl font-bold text-slate-900">{value}</p></div></div>)}</div>
-      <Card density="admin" className="overflow-hidden">
-        <div className="flex flex-col md:flex-row gap-3 items-center justify-between pb-4 border-b border-slate-200"><div className="relative w-full md:max-w-sm"><Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400"/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search case, location, or ID" className="w-full h-9 pl-9 pr-3 border border-slate-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"/></div><div className="flex items-center gap-2 w-full md:w-auto"><SlidersHorizontal className="w-4 h-4 text-slate-500"/><select value={filter} onChange={e=>setFilter(e.target.value)} className="h-9 border border-slate-300 rounded px-2 text-sm bg-white"><option>All</option><option>Submitted</option><option>In Progress</option><option>Resolved</option></select></div></div>
+
+      {user.department === 'All' && (
+        <div className="flex gap-4 mb-6 border-b border-gray-200">
+          <button 
+            className={`py-2 px-4 font-bold ${activeTab === 'grievances' ? 'text-primary-600 border-b-2 border-primary-600' : 'text-gray-500 hover:text-gray-700'}`}
+            onClick={() => setActiveTab('grievances')}
+          >
+            Grievances
+          </button>
+          <button 
+            className={`py-2 px-4 font-bold ${activeTab === 'staff' ? 'text-primary-600 border-b-2 border-primary-600' : 'text-gray-500 hover:text-gray-700'}`}
+            onClick={() => setActiveTab('staff')}
+          >
+            Manage Staff
+          </button>
+        </div>
+      )}
+
+      {activeTab === 'staff' ? (
+        <ManageStaff />
+      ) : (
+      <>
+
+      <Card className="overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
@@ -256,6 +359,8 @@ const AdminDashboard = () => {
             </form>
           </Card>
         </div>
+      )}
+      </>
       )}
     </div>
   );

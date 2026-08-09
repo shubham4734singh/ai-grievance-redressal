@@ -12,7 +12,7 @@ cloudinary.config(
     api_secret=settings.CLOUDINARY_API_SECRET
 )
 
-@router.post("/")
+@router.post("")
 async def upload_image(
     file: UploadFile = File(...),
     current_user: dict = Depends(get_current_user)
