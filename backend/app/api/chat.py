@@ -44,6 +44,7 @@ async def chat_with_bot(
             "The user may optionally attach an evidence image; do not require it, but acknowledge it if present. "
             "After the user describes the problem, acknowledge their concern briefly and ask whether they are currently at the same location where the problem exists. "
             "When you ask that same-location question, append this marker on its own line: [ASK_LOCATION_PERMISSION]. "
+            "CRITICAL: DO NOT use the [ASK_LOCATION_PERMISSION] marker if the user has already provided their location (e.g., if you see GPS coordinates) or if you are asking for the problem description. ONLY use it exactly ONCE when explicitly asking for location."
             "If the user says yes, wait for browser GPS coordinates before filing. "
             "If the user says no or GPS is unavailable, ask them to type the location with city, landmark, or street. "
             "If they provide all the information, tell them you will file it right now. "
