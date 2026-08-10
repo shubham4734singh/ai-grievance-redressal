@@ -12,6 +12,11 @@ const Chatbot = () => {
   const [isRecording, setIsRecording] = useState(false);
   const [mediaRecorder, setMediaRecorder] = useState(null);
   const [awaitingLocationConsent, setAwaitingLocationConsent] = useState(false);
+  const [evidenceUrl, setEvidenceUrl] = useState('');
+  const [evidenceName, setEvidenceName] = useState('');
+  const [uploadingEvidence, setUploadingEvidence] = useState(false);
+  const [uploadError, setUploadError] = useState('');
+  const fileInputRef = useRef(null);
   const messagesEndRef = useRef(null);
 
   const isAffirmative = (value) => {
@@ -47,7 +52,7 @@ const Chatbot = () => {
     );
   });
 
-  const sendChatRequest = async (conversation, currentLocation = null) => {
+  const sendChatRequest = async (conversation, currentLocation = null, evidenceOverride = evidenceUrl) => {
     const token = localStorage.getItem('token');
     const response = await fetch('/api/chat/', {
       method: 'POST',
@@ -57,7 +62,8 @@ const Chatbot = () => {
       },
       body: JSON.stringify({
         messages: conversation,
-        current_location: currentLocation
+        current_location: currentLocation,
+        evidence_url: evidenceOverride || null
       })
     });
 
@@ -150,6 +156,54 @@ const Chatbot = () => {
     } catch (err) {
       alert("Microphone access denied or not available.");
     }
+  };
+
+  const handleEvidenceUpload = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      setUploadError('Please attach an image file.');
+      event.target.value = '';
+      return;
+    }
+
+    const data = new FormData();
+    data.append('file', file);
+    setUploadingEvidence(true);
+    setUploadError('');
+
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        headers: { 'Authorization': token ? `Bearer ${token}` : '' },
+        body: data
+      });
+      if (!res.ok) throw new Error('Upload failed');
+
+      const result = await res.json();
+      setEvidenceUrl(result.url);
+      setEvidenceName(file.name);
+      setMessages(prev => [
+        ...prev,
+        {
+          role: 'user',
+          content: 'Attached an evidence image.'
+        }
+      ]);
+    } catch (err) {
+      setUploadError('Image upload failed. Please try again.');
+    } finally {
+      setUploadingEvidence(false);
+      event.target.value = '';
+    }
+  };
+
+  const removeEvidence = () => {
+    setEvidenceUrl('');
+    setEvidenceName('');
+    setUploadError('');
   };
 
   const stopRecording = () => {
@@ -289,35 +343,73 @@ const Chatbot = () => {
           </div>
 
           {/* Input */}
-          <form onSubmit={handleSend} className="p-4 bg-white border-t border-gray-200 flex gap-2 items-center">
-            <button
-              type="button"
-              onClick={isRecording ? stopRecording : startRecording}
-              className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${isRecording ? 'bg-red-100 text-red-600 animate-pulse' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
-              title={isRecording ? 'Stop Recording' : 'Start Dictation'}
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 015 8a1 1 0 00-2 0 7.001 7.001 0 006 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-3v-2.07z" clipRule="evenodd" />
-              </svg>
-            </button>
-            <input
-              type="text"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder={isRecording ? "Listening..." : "Type your message..."}
-              className="flex-1 px-4 py-2 bg-gray-100 rounded-full focus:outline-none focus:ring-2 focus:ring-primary-500"
-              disabled={isRecording}
-            />
-            <button
-              type="submit"
-              disabled={loading || !input.trim() || isRecording}
-              className="w-10 h-10 bg-primary-600 text-white rounded-full flex items-center justify-center hover:bg-primary-700 disabled:opacity-50 transition-colors"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 -ml-0.5" viewBox="0 0 20 20" fill="currentColor">
-                <path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" />
-              </svg>
-            </button>
-          </form>
+          <div className="bg-white border-t border-gray-200">
+            {(evidenceUrl || uploadingEvidence || uploadError) && (
+              <div className="px-4 pt-3">
+                {evidenceUrl && (
+                  <div className="flex items-center gap-3 rounded-xl border border-gray-200 bg-gray-50 p-2">
+                    <img src={evidenceUrl} alt="Evidence preview" className="h-12 w-12 rounded-lg object-cover" />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-semibold text-gray-800">{evidenceName || 'Evidence image'}</p>
+                      <p className="text-xs text-gray-500">Attached to this complaint</p>
+                    </div>
+                    <button type="button" onClick={removeEvidence} className="px-2 py-1 text-xs font-semibold text-gray-500 hover:text-red-600">
+                      Remove
+                    </button>
+                  </div>
+                )}
+                {uploadingEvidence && <p className="text-xs font-semibold text-primary-600">Uploading image...</p>}
+                {uploadError && <p className="text-xs font-semibold text-red-600">{uploadError}</p>}
+              </div>
+            )}
+            <form onSubmit={handleSend} className="p-4 flex gap-2 items-center">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleEvidenceUpload}
+                className="hidden"
+              />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploadingEvidence || loading}
+                className="w-10 h-10 rounded-full flex items-center justify-center bg-gray-100 text-gray-500 hover:bg-gray-200 disabled:opacity-50 transition-colors"
+                title="Attach Evidence Photo"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M8 4a3 3 0 016 0v7a5 5 0 11-10 0V6a1 1 0 112 0v5a3 3 0 106 0V4a1 1 0 10-2 0v7a1 1 0 11-2 0V4z" clipRule="evenodd" />
+                </svg>
+              </button>
+              <button
+                type="button"
+                onClick={isRecording ? stopRecording : startRecording}
+                className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${isRecording ? 'bg-red-100 text-red-600 animate-pulse' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
+                title={isRecording ? 'Stop Recording' : 'Start Dictation'}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 015 8a1 1 0 00-2 0 7.001 7.001 0 006 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-3v-2.07z" clipRule="evenodd" />
+                </svg>
+              </button>
+              <input
+                type="text"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                placeholder={isRecording ? "Listening..." : "Type your message..."}
+                className="min-w-0 flex-1 px-4 py-2 bg-gray-100 rounded-full focus:outline-none focus:ring-2 focus:ring-primary-500"
+                disabled={isRecording}
+              />
+              <button
+                type="submit"
+                disabled={loading || uploadingEvidence || !input.trim() || isRecording}
+                className="w-10 h-10 bg-primary-600 text-white rounded-full flex items-center justify-center hover:bg-primary-700 disabled:opacity-50 transition-colors"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 -ml-0.5" viewBox="0 0 20 20" fill="currentColor">
+                  <path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" />
+                </svg>
+              </button>
+            </form>
+          </div>
         </div>
       )}
     </>

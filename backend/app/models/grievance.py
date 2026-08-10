@@ -11,6 +11,9 @@ class GrievanceCreate(BaseModel):
     contact_phone: Optional[str] = None
     contact_name: Optional[str] = None
     telegram_chat_id: Optional[int] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    location_accuracy: Optional[float] = None
 
 class StatusHistoryEntry(BaseModel):
     status: str

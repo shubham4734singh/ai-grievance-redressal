@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
-from typing import List
+from typing import List, Optional
 from groq import AsyncGroq
 from app.core.config import settings
 from app.core.database import get_database
@@ -15,8 +15,15 @@ class ChatMessage(BaseModel):
     role: str
     content: str
 
+class CurrentLocation(BaseModel):
+    latitude: float
+    longitude: float
+    accuracy: Optional[float] = None
+
 class ChatRequest(BaseModel):
     messages: List[ChatMessage]
+    current_location: Optional[CurrentLocation] = None
+    evidence_url: Optional[str] = None
 
 @router.post("/")
 async def chat_with_bot(
@@ -30,7 +37,12 @@ async def chat_with_bot(
             "You are a helpful, empathetic, and professional government grievance assistant. "
             "You MUST speak in the exact same language the user speaks to you (e.g., if they speak Hindi, reply in Hindi). "
             "Your job is to help citizens file a complaint by asking them for necessary details step-by-step. "
-            "You need to collect: 1) A description of the problem, and 2) The exact location (city, landmark, street). "
+            "You need to collect: 1) A description of the problem, and 2) The exact location. "
+            "The user may optionally attach an evidence image; do not require it, but acknowledge it if present. "
+            "After the user describes the problem, acknowledge their concern briefly and ask whether they are currently at the same location where the problem exists. "
+            "When you ask that same-location question, append this marker on its own line: [ASK_LOCATION_PERMISSION]. "
+            "If the user says yes, wait for browser GPS coordinates before filing. "
+            "If the user says no or GPS is unavailable, ask them to type the location with city, landmark, or street. "
             "If they provide all the information, tell them you will file it right now. "
             "To trigger the auto-filing, you MUST output the final compiled complaint inside a block exactly like this:\n"
             "[SUBMIT]\n<the full detailed complaint translated to pure ENGLISH here>\n[/SUBMIT]\n"
@@ -39,6 +51,22 @@ async def chat_with_bot(
     }
     
     messages = [system_prompt] + [msg.model_dump() for msg in request.messages]
+    if request.current_location:
+        location_context = (
+            "The user granted browser location permission for the problem site. "
+            f"Exact GPS coordinates: latitude {request.current_location.latitude}, "
+            f"longitude {request.current_location.longitude}"
+        )
+        if request.current_location.accuracy is not None:
+            location_context += f", accuracy {round(request.current_location.accuracy)} meters"
+        location_context += ". Treat this as the exact location and proceed with filing if the problem description is available."
+        messages.append({"role": "system", "content": location_context})
+    if request.evidence_url:
+        messages.append({
+            "role": "system",
+            "content": "The user attached an evidence image for this complaint. Store this Cloudinary URL with the grievance: "
+            f"{request.evidence_url}"
+        })
     
     from app.services.security import check_for_jailbreak
     
@@ -74,6 +102,8 @@ async def chat_with_bot(
         )
         
         reply = response.choices[0].message.content
+        expects_location_permission = "[ASK_LOCATION_PERMISSION]" in reply
+        reply = reply.replace("[ASK_LOCATION_PERMISSION]", "").strip()
         
         # Check if [SUBMIT] tags exist
         submit_match = re.search(r"\[SUBMIT\](.*?)\[/SUBMIT\]", reply, re.DOTALL)
@@ -96,14 +126,21 @@ async def chat_with_bot(
             db_grievance = GrievanceInDB(
                 tracking_id=tracking_id,
                 description=final_description,
-                location="Location specified in description",
+                location=(
+                    f"GPS: {request.current_location.latitude}, {request.current_location.longitude}"
+                    if request.current_location
+                    else "Location specified in description"
+                ),
+                latitude=request.current_location.latitude if request.current_location else None,
+                longitude=request.current_location.longitude if request.current_location else None,
+                location_accuracy=request.current_location.accuracy if request.current_location else None,
                 category=ai_analysis.get("category", "General"),
                 department=ai_analysis.get("department", "Unassigned"),
                 priority=ai_analysis.get("priority", "Medium"),
                 sentiment=ai_analysis.get("sentiment", "Neutral"),
                 history=[initial_history],
                 user_id=current_user["id"],
-                evidence_url=""
+                evidence_url=request.evidence_url or ""
             )
             
             await db.grievances.insert_one(db_grievance.model_dump(by_alias=True))
@@ -112,7 +149,10 @@ async def chat_with_bot(
             success_msg = f"\n\n **Success!** I have automatically filed this grievance on your behalf. Your Tracking ID is **{tracking_id}**. You can monitor its status on the Track Status page."
             reply = re.sub(r"\[SUBMIT\].*?\[/SUBMIT\]", success_msg, reply, flags=re.DOTALL)
             
-        return {"reply": reply}
+        return {
+            "reply": reply,
+            "expects_location_permission": expects_location_permission
+        }
     except Exception as e:
         import traceback
         traceback.print_exc()
