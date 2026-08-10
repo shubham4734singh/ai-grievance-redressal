@@ -36,6 +36,7 @@ const Home = () => {
     </section>
     <section className="relative z-10 max-w-6xl mx-auto -mt-8 px-5"><div className="grid sm:grid-cols-3 overflow-hidden rounded-2xl border border-white/70 bg-white/90 shadow-[0_18px_42px_rgba(14,52,89,.14)] backdrop-blur-xl">{[['01','Detect problem','Share a photo, location, or voice note.'],['02','Register complaint','Get a secure tracking reference.'],['03','Get resolution','Follow action through to closure.']].map(([number,title,copy])=><div key={number} className="journey-step flex gap-4 px-5 py-5 md:px-7"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-primary-50 text-sm font-bold text-primary-600">{number}</span><div><h2 className="font-bold text-slate-900">{title}</h2><p className="mt-1 text-sm leading-5 text-slate-500">{copy}</p></div></div>)}</div></section>
   <section className="max-w-7xl mx-auto px-5 py-16"><div className="flex flex-col md:flex-row md:items-end justify-between gap-4"><div><p className="text-sm font-bold tracking-wider text-primary-600">CITIZEN SERVICES</p><h2 className="mt-2 text-3xl font-bold tracking-tight text-slate-900">What would you like to do?</h2></div><p className="text-slate-500 max-w-sm md:text-right">Everything you need to register, track, and understand your request.</p></div><div className="mt-8 grid md:grid-cols-3 gap-5">{[[FilePlus2,'Report an issue','Roads, water, sanitation, public services and more.','/file','bg-[#eff7ff] text-[#1762a6]'],[Search,'Check an update','Use your tracking ID to see where your case stands.','/track','bg-[#f2f8f3] text-[#318052'],[Headphones,'Get help','Ask the support assistant in your language.','#help','bg-[#fff7eb] text-[#b67112']].map(([Icon,title,text,to,tone])=><Link key={title} to={to} className="service-card group rounded-2xl bg-white border border-slate-200 p-6"><div className={`w-12 h-12 grid place-items-center rounded-xl ${tone}`}><Icon className="w-6 h-6"/></div><h3 className="mt-6 flex items-center justify-between font-bold text-lg text-slate-900">{title}<ChevronRight className="w-5 h-5 text-primary-500 group-hover:translate-x-1 transition-transform"/></h3><p className="mt-2 text-sm leading-6 text-slate-600">{text}</p><span className="inline-flex mt-5 text-sm font-bold text-primary-600">Open service <ChevronRight className="ml-1 w-4 h-4"/></span></Link>)}</div></section>
+  <section className="max-w-7xl mx-auto px-5 mb-10"><div className="rounded-3xl bg-[#2AABEE] px-7 py-9 md:p-12 text-white grid md:grid-cols-[1fr_auto] gap-7 items-center overflow-hidden relative"><div className="absolute right-0 inset-y-0 w-1/2 opacity-20 hero-grid"/><div className="relative"><p className="text-blue-100 font-bold text-sm tracking-wider">NEW: ON THE GO?</p><h2 className="mt-2 text-3xl font-bold">Report issues via Telegram</h2><p className="mt-3 text-blue-50 max-w-lg">Submit complaints, upload photos, and track your grievance status instantly through our automated Telegram AI Assistant.</p></div><a href="https://t.me/CityGrievance_bot" target="_blank" rel="noreferrer" className="relative button-lift inline-flex items-center justify-center gap-2 rounded-xl bg-white text-[#2AABEE] shadow-lg px-6 min-h-[50px] font-bold"><MessageCircle className="w-5 h-5"/> Open Telegram Bot</a></div></section>
   <section className="max-w-7xl mx-auto px-5"><div className="rounded-3xl bg-[#0f355e] px-7 py-9 md:p-12 text-white grid md:grid-cols-[1fr_auto] gap-7 items-center overflow-hidden relative"><div className="absolute right-0 inset-y-0 w-1/2 opacity-15 hero-grid"/><div className="relative"><p className="text-blue-200 font-bold text-sm tracking-wider">NEED ASSISTANCE?</p><h2 className="mt-2 text-3xl font-bold">We&apos;re here to make it easier.</h2><p className="mt-3 text-blue-100 max-w-lg">Get step-by-step help with your grievance from our guided support assistant.</p></div><button onClick={()=>{ if(localStorage.getItem('token')){ window.dispatchEvent(new Event('open-help-assistant')); } else { window.location.href = '/login'; } }} className="relative button-lift inline-flex items-center justify-center gap-2 rounded-xl bg-white text-primary-600 px-6 min-h-[50px] font-bold"><MessageCircle className="w-5 h-5"/> Talk to support</button></div></section>
 </div>;
 };
@@ -75,13 +76,19 @@ function App() {
 
   const handleLanguageChange = (e) => {
     const lang = e.target.value;
-    if (lang === 'en') {
-      document.cookie = `googtrans=/en/en; path=/; domain=${window.location.hostname}`;
-      document.cookie = `googtrans=/en/en; path=/`;
-    } else {
-      document.cookie = `googtrans=/en/${lang}; path=/; domain=${window.location.hostname}`;
-      document.cookie = `googtrans=/en/${lang}; path=/`;
-    }
+    const host = window.location.hostname;
+    
+    // Clear old cookies to prevent conflicts
+    document.cookie = `googtrans=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
+    document.cookie = `googtrans=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=${host}`;
+    document.cookie = `googtrans=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=.${host}`;
+    
+    // Set new cookie across all variations
+    const val = `/en/${lang}`;
+    document.cookie = `googtrans=${val}; path=/;`;
+    document.cookie = `googtrans=${val}; path=/; domain=${host}`;
+    document.cookie = `googtrans=${val}; path=/; domain=.${host}`;
+    
     window.location.reload();
   };
   const currentLang = document.cookie.split('; ').find(row => row.startsWith('googtrans='))?.split('/')[2] || 'en';
