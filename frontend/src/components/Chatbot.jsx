@@ -1,6 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { Card } from './ui/Card';
 import './Chatbot.css';
 
 const Chatbot = () => {
@@ -12,7 +11,108 @@ const Chatbot = () => {
   const [loading, setLoading] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [mediaRecorder, setMediaRecorder] = useState(null);
+  const [awaitingLocationConsent, setAwaitingLocationConsent] = useState(false);
   const messagesEndRef = useRef(null);
+
+  const isAffirmative = (value) => {
+    const normalized = value.trim().toLowerCase();
+    return /(^|\s)(yes|yeah|yep|sure|ok|okay|haan|hanji|ji|हां|हाँ|हो|होय)(\s|$|[.!?])/i.test(normalized);
+  };
+
+  const isNegative = (value) => {
+    const normalized = value.trim().toLowerCase();
+    return /(^|\s)(no|nope|nah|nahi|nahin|नहीं|नही|नको)(\s|$|[.!?])/i.test(normalized);
+  };
+
+  const isSameLocationQuestion = (value) => (
+    /same location/i.test(value) ||
+    /currently at/i.test(value) ||
+    /problem location/i.test(value)
+  );
+
+  const getCurrentLocation = () => new Promise((resolve, reject) => {
+    if (!navigator.geolocation) {
+      reject(new Error('Geolocation is not supported by this browser.'));
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => resolve({
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude,
+        accuracy: position.coords.accuracy
+      }),
+      () => reject(new Error('Location permission was denied or unavailable.')),
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
+  });
+
+  const sendChatRequest = async (conversation, currentLocation = null) => {
+    const token = localStorage.getItem('token');
+    const response = await fetch('/api/chat/', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': token ? `Bearer ${token}` : ''
+      },
+      body: JSON.stringify({
+        messages: conversation,
+        current_location: currentLocation
+      })
+    });
+
+    if (!response.ok) throw new Error('Failed to get response');
+    return response.json();
+  };
+
+  const addAssistantReply = (baseMessages, data) => {
+    const assistantMessage = { role: 'assistant', content: data.reply };
+    setAwaitingLocationConsent(Boolean(data.expects_location_permission) || isSameLocationQuestion(data.reply));
+    setMessages([...baseMessages, assistantMessage]);
+  };
+
+  const buildGpsMessage = (currentLocation) => ({
+    role: 'user',
+    content: `Browser GPS location captured: latitude ${currentLocation.latitude}, longitude ${currentLocation.longitude}, accuracy ${Math.round(currentLocation.accuracy)} meters. Use this as the exact problem location.`
+  });
+
+  const requestBrowserLocation = async () => {
+    const userMessage = { role: 'user', content: 'Use my current browser location.' };
+    const visibleMessages = [...messages, userMessage];
+    setMessages(visibleMessages);
+    setLoading(true);
+
+    try {
+      const currentLocation = await getCurrentLocation();
+      const messagesForServer = [...visibleMessages, buildGpsMessage(currentLocation)];
+      const data = await sendChatRequest(messagesForServer, currentLocation);
+      addAssistantReply(visibleMessages, data);
+    } catch (error) {
+      setAwaitingLocationConsent(false);
+      setMessages([
+        ...visibleMessages,
+        {
+          role: 'assistant',
+          content: "I couldn't access your current location. Please type the problem location with the nearest landmark, street, or city."
+        }
+      ]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const chooseManualLocation = () => {
+    const userMessage = { role: 'user', content: 'I will enter the location manually.' };
+    setAwaitingLocationConsent(false);
+    setMessages([
+      ...messages,
+      userMessage,
+      {
+        role: 'assistant',
+        content: 'Please type the exact problem location with the nearest landmark, street, or city.'
+      }
+    ]);
+  };
 
   const startRecording = async () => {
     try {
@@ -87,22 +187,24 @@ const Chatbot = () => {
     setLoading(true);
 
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch('/api/chat/', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': token ? `Bearer ${token}` : ''
-        },
-        body: JSON.stringify({ messages: newMessages })
-      });
+      let currentLocation = null;
+      let messagesForServer = newMessages;
 
-      if (!response.ok) throw new Error('Failed to get response');
-      const data = await response.json();
-      
-      setMessages([...newMessages, { role: 'assistant', content: data.reply }]);
+      if (awaitingLocationConsent && isAffirmative(input)) {
+        currentLocation = await getCurrentLocation();
+        messagesForServer = [...newMessages, buildGpsMessage(currentLocation)];
+      } else if (awaitingLocationConsent && isNegative(input)) {
+        setAwaitingLocationConsent(false);
+      }
+
+      const data = await sendChatRequest(messagesForServer, currentLocation);
+      addAssistantReply(newMessages, data);
     } catch (error) {
-      setMessages([...newMessages, { role: 'assistant', content: "I'm having trouble connecting to the server right now. Please try again later." }]);
+      const reply = awaitingLocationConsent && isAffirmative(input)
+        ? "I couldn't access your current location. Please type the problem location with the nearest landmark or street."
+        : "I'm having trouble connecting to the server right now. Please try again later.";
+      setAwaitingLocationConsent(false);
+      setMessages([...newMessages, { role: 'assistant', content: reply }]);
     } finally {
       setLoading(false);
     }
@@ -157,6 +259,29 @@ const Chatbot = () => {
                   <div className="w-2 h-2 bg-gray-300 rounded-full animate-bounce"></div>
                   <div className="w-2 h-2 bg-gray-300 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
                   <div className="w-2 h-2 bg-gray-300 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></div>
+                </div>
+              </div>
+            )}
+            {awaitingLocationConsent && !loading && (
+              <div className="flex justify-start">
+                <div className="max-w-[80%] bg-white border border-gray-200 rounded-2xl rounded-bl-sm shadow-sm p-3">
+                  <p className="text-sm text-gray-700 mb-3">Share your exact location from this browser, or enter it manually.</p>
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <button
+                      type="button"
+                      onClick={requestBrowserLocation}
+                      className="px-3 py-2 rounded-full bg-primary-600 text-white text-sm font-semibold hover:bg-primary-700 transition-colors"
+                    >
+                      Use current location
+                    </button>
+                    <button
+                      type="button"
+                      onClick={chooseManualLocation}
+                      className="px-3 py-2 rounded-full bg-gray-100 text-gray-700 text-sm font-semibold hover:bg-gray-200 transition-colors"
+                    >
+                      Enter manually
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
