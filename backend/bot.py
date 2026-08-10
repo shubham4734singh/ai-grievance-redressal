@@ -16,6 +16,19 @@ logging.basicConfig(
 CONTACT, GRIEVANCE_INPUT, LOCATION = range(3)
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    client = AsyncIOMotorClient(settings.MONGODB_URL)
+    db = client[settings.DATABASE_NAME]
+    chat_id = str(update.message.chat_id)
+    admin = await db.users.find_one({"role": "admin", "telegram_chat_id": chat_id})
+    if admin:
+        await update.message.reply_text(
+            f"Welcome *{admin['full_name']}*!\n\n"
+            f"You are successfully connected as the Admin for *{admin['department']}*.\n"
+            "You will now receive all new grievances for your department directly in this chat.",
+            parse_mode="Markdown"
+        )
+        return ConversationHandler.END
+
     contact_button = KeyboardButton("Share Contact Number", request_contact=True)
     reply_markup = ReplyKeyboardMarkup([[contact_button]], one_time_keyboard=True, resize_keyboard=True)
     
@@ -140,6 +153,31 @@ async def handle_location(update: Update, context: ContextTypes.DEFAULT_TYPE):
     doc = db_grievance.model_dump(by_alias=True)
     
     await db.grievances.insert_one(doc)
+    
+    # --- SEND TO DEPARTMENT ON TELEGRAM ---
+    dept_name = grievance_data['department']
+    dept_admin = await db.users.find_one({"role": "admin", "department": dept_name, "telegram_chat_id": {"$exists": True, "$ne": ""}})
+    
+    if dept_admin and dept_admin.get("telegram_chat_id"):
+        target_group_id = dept_admin["telegram_chat_id"]
+        officer_msg = (
+            f"*New Grievance Assigned to {dept_name}*\n\n"
+            f"*Tracking ID:* `{tracking_id}`\n"
+            f"*Category:* {grievance_data['category']}\n"
+            f"*Priority:* {grievance_data['priority']}\n"
+            f"*Location:* {location_text}\n\n"
+            f"*Description:* {description}\n\n"
+            f"*Reporter:* {first_name} ({phone_number})"
+        )
+        
+        try:
+            if evidence_url:
+                await context.bot.send_photo(chat_id=target_group_id, photo=evidence_url, caption=officer_msg, parse_mode="Markdown")
+            else:
+                await context.bot.send_message(chat_id=target_group_id, text=officer_msg, parse_mode="Markdown")
+        except Exception as e:
+            logging.error(f"Could not send to department group {target_group_id}: {e}")
+    # --------------------------------------
     
     await update.message.reply_text(
         f"*Grievance Submitted Successfully!*\n\n"

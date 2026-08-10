@@ -1,151 +1,547 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, Bot, CheckCircle2, ClipboardList, Clock3, MapPin, Search, SlidersHorizontal, Sparkles, X } from 'lucide-react';
-import { Button } from '../components/ui/Button';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Search, SlidersHorizontal, ClipboardList, Clock3, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { Card } from '../components/ui/Card';
+import { Button } from '../components/ui/Button';
 import { StatusBadge } from '../components/ui/StatusBadge';
 
-const priorityStyle = {
-  Urgent: 'bg-red-100 text-red-800 ring-red-200',
-  High: 'bg-orange-100 text-orange-800 ring-orange-200',
-  Medium: 'bg-amber-100 text-amber-800 ring-amber-200',
-  Low: 'bg-emerald-100 text-emerald-800 ring-emerald-200',
-  Unassigned: 'bg-slate-100 text-slate-700 ring-slate-200',
-};
-
-const priorityRank = { Urgent: 4, High: 3, Medium: 2, Low: 1, Unassigned: 0 };
-
-const PriorityBadge = ({ priority = 'Unassigned' }) => (
-  <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold ring-1 ring-inset ${priorityStyle[priority] || priorityStyle.Unassigned}`}>
-    {priority === 'Urgent' || priority === 'High' ? <AlertTriangle className="h-3.5 w-3.5" /> : <Sparkles className="h-3.5 w-3.5" />}
-    {priority}
-  </span>
-);
-
-const formatDate = (value) => value ? new Intl.DateTimeFormat('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(value)) : 'Not available';
-
 const ManageStaff = () => {
-  const [formData, setFormData] = useState({ full_name: '', email: '', password: '', department: 'Water' });
-  const [notice, setNotice] = useState({ type: '', text: '' });
+  const [formData, setFormData] = useState({ full_name: '', email: '', password: '', department: 'Water Department', telegram_chat_id: '' });
   const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState('');
+  const [error, setError] = useState('');
+  const [staffList, setStaffList] = useState([]);
+  const [editingStaffId, setEditingStaffId] = useState(null);
+  const [editData, setEditData] = useState({ full_name: '', email: '', department: '', telegram_chat_id: '' });
+  const [updateLoading, setUpdateLoading] = useState(false);
 
-  const submit = async (event) => {
-    event.preventDefault();
-    setLoading(true);
-    setNotice({ type: '', text: '' });
+  const fetchStaff = async () => {
     try {
-      const response = await fetch('/api/auth/create-admin', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` }, body: JSON.stringify(formData) });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.detail || 'Failed to create staff account.');
-      setNotice({ type: 'success', text: `${data.full_name} can now access the ${data.department} workspace.` });
-      setFormData({ full_name: '', email: '', password: '', department: 'Water' });
-    } catch (error) { setNotice({ type: 'error', text: error.message }); } finally { setLoading(false); }
+      const token = localStorage.getItem('token');
+      const res = await fetch('/api/auth/staff', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setStaffList(data);
+      }
+    } catch (err) {
+      console.error(err);
+    }
   };
 
-  return <Card className="max-w-2xl p-6 md:p-8">
-    <h2 className="text-xl font-bold text-slate-950">Create department officer</h2>
-    <p className="mt-1 text-sm text-slate-600">Officers can view and update cases assigned to their department.</p>
-    {notice.text && <div className={`mt-5 rounded-lg border p-3 text-sm font-medium ${notice.type === 'success' ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-red-200 bg-red-50 text-red-800'}`}>{notice.text}</div>}
-    <form onSubmit={submit} className="mt-6 grid gap-4 sm:grid-cols-2">
-      {[['full_name', 'Full name', 'text'], ['email', 'Email address', 'email'], ['password', 'Temporary password', 'password']].map(([key, label, type]) => <label key={key} className="grid gap-1.5 text-sm font-semibold text-slate-700"><span>{label}</span><input required type={type} value={formData[key]} onChange={(event) => setFormData({ ...formData, [key]: event.target.value })} className="h-11 rounded-lg border border-slate-300 px-3 outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-100" /></label>)}
-      <label className="grid gap-1.5 text-sm font-semibold text-slate-700"><span>Department scope</span><select value={formData.department} onChange={(event) => setFormData({ ...formData, department: event.target.value })} className="h-11 rounded-lg border border-slate-300 bg-white px-3 outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-100">{['Water', 'Electricity', 'Roads', 'Sanitation', 'Police'].map((department) => <option key={department}>{department}</option>)}</select></label>
-      <Button type="submit" loading={loading} className="sm:col-span-2">Create officer account</Button>
-    </form>
-  </Card>;
+  useEffect(() => {
+    fetchStaff();
+  }, []);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setSuccess('');
+    setError('');
+    
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch('/api/auth/create-admin', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(formData)
+      });
+      
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || 'Failed to create staff account');
+      
+      setSuccess(`Successfully created Admin account for ${data.full_name} (${data.department})`);
+      setFormData({ full_name: '', email: '', password: '', department: 'Water Department', telegram_chat_id: '' });
+      fetchStaff();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUpdateStaff = async (id) => {
+    setUpdateLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`/api/auth/staff/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(editData)
+      });
+      if (res.ok) {
+        setEditingStaffId(null);
+        fetchStaff();
+      } else {
+        alert('Failed to update telegram chat ID');
+      }
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setUpdateLoading(false);
+    }
+  };
+
+  return (
+    <Card className="max-w-2xl">
+      <div className="p-6">
+        <h2 className="text-xl font-bold mb-6">Create New Department Admin</h2>
+        
+        {success && <div className="p-4 mb-6 bg-green-50 text-green-700 rounded-xl border border-green-200 font-bold">{success}</div>}
+        {error && <div className="p-4 mb-6 bg-red-50 text-red-700 rounded-xl border border-red-200 font-bold">{error}</div>}
+        
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1">Full Name</label>
+              <input type="text" required value={formData.full_name} onChange={e => setFormData({...formData, full_name: e.target.value})} className="w-full px-4 py-2 border rounded-xl" />
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1">Email</label>
+              <input type="email" required value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} className="w-full px-4 py-2 border rounded-xl" />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1">Temporary Password</label>
+              <input type="password" required value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} className="w-full px-4 py-2 border rounded-xl" />
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1">Department Scope</label>
+              <select value={formData.department} onChange={e => setFormData({...formData, department: e.target.value})} className="w-full px-4 py-2 border rounded-xl bg-white">
+                <option value="Water Department">Water Department</option>
+                <option value="Electricity Board">Electricity Board</option>
+                <option value="Roads & Transport">Roads & Transport</option>
+                <option value="Sanitation & Waste">Sanitation & Waste</option>
+                <option value="Police & Security">Police & Security</option>
+              </select>
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-1">Telegram Group Chat ID (Optional)</label>
+            <input type="text" placeholder="-100123456789" value={formData.telegram_chat_id} onChange={e => setFormData({...formData, telegram_chat_id: e.target.value})} className="w-full px-4 py-2 border rounded-xl" />
+            <p className="text-xs text-gray-500 mt-1">If provided, AI will forward new grievances for this department to this Telegram group.</p>
+          </div>
+          <Button type="submit" loading={loading} className="w-full mt-4">Create Admin Account</Button>
+        </form>
+      </div>
+
+      <div className="p-6 border-t border-gray-100">
+        <h3 className="text-lg font-bold mb-4">Existing Department Staff</h3>
+        <div className="space-y-3">
+          {staffList.map(staff => (
+            <div key={staff.id} className="p-3 bg-gray-50 rounded-xl border border-gray-200">
+              {editingStaffId === staff.id ? (
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <input type="text" value={editData.full_name} onChange={e => setEditData({...editData, full_name: e.target.value})} className="px-3 py-1.5 text-sm border rounded-md" placeholder="Full Name" />
+                    <input type="email" value={editData.email} onChange={e => setEditData({...editData, email: e.target.value})} className="px-3 py-1.5 text-sm border rounded-md" placeholder="Email" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <select value={editData.department} onChange={e => setEditData({...editData, department: e.target.value})} className="px-3 py-1.5 text-sm border rounded-md bg-white">
+                      <option value="Water Department">Water Department</option>
+                      <option value="Electricity Board">Electricity Board</option>
+                      <option value="Roads & Transport">Roads & Transport</option>
+                      <option value="Sanitation & Waste">Sanitation & Waste</option>
+                      <option value="Police & Security">Police & Security</option>
+                    </select>
+                    <input type="text" value={editData.telegram_chat_id} onChange={e => setEditData({...editData, telegram_chat_id: e.target.value})} className="px-3 py-1.5 text-sm border rounded-md" placeholder="Telegram ID (optional)" />
+                  </div>
+                  <div className="flex gap-2 justify-end">
+                    <Button size="sm" loading={updateLoading} onClick={() => handleUpdateStaff(staff.id)}>Save Changes</Button>
+                    <button onClick={() => setEditingStaffId(null)} className="text-sm font-semibold text-gray-500 hover:text-gray-700">Cancel</button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex justify-between items-center">
+                  <div>
+                    <p className="font-bold text-gray-900">{staff.full_name}</p>
+                    <p className="text-sm text-gray-500">{staff.email}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm font-semibold text-primary-600 mb-1">{staff.department}</p>
+                    <div className="flex items-center gap-2 justify-end">
+                      {staff.telegram_chat_id ? (
+                        <p className="text-xs text-gray-500 font-mono">TG: {staff.telegram_chat_id}</p>
+                      ) : (
+                        <p className="text-xs text-gray-400">No TG ID</p>
+                      )}
+                      <button 
+                        onClick={() => { 
+                          setEditingStaffId(staff.id); 
+                          setEditData({
+                            full_name: staff.full_name,
+                            email: staff.email,
+                            department: staff.department,
+                            telegram_chat_id: staff.telegram_chat_id || ''
+                          });
+                        }}
+                        className="text-xs text-primary-600 hover:underline font-semibold"
+                      >
+                        Edit All
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+          {staffList.length === 0 && <p className="text-sm text-gray-500">No staff accounts created yet.</p>}
+        </div>
+      </div>
+    </Card>
+  );
 };
 
 const AdminDashboard = () => {
   const [grievances, setGrievances] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [selected, setSelected] = useState(null);
-  const [query, setQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState('All');
-  const [priorityFilter, setPriorityFilter] = useState('All');
-  const [sort, setSort] = useState('newest');
-  const [activeTab, setActiveTab] = useState('grievances');
-  const [status, setStatus] = useState('Submitted');
-  const [priority, setPriority] = useState('Unassigned');
-  const [note, setNote] = useState('');
-  const [updating, setUpdating] = useState(false);
-  const [plan, setPlan] = useState('');
-  const [generatingPlan, setGeneratingPlan] = useState(false);
+  const [selectedGrievance, setSelectedGrievance] = useState(null);
+  
   const user = JSON.parse(localStorage.getItem('user') || '{}');
   const departmentName = user.department === 'All' ? 'Central' : user.department || 'Central';
 
+  // Status Update Form State
+  const [status, setStatus] = useState('');
+  const [note, setNote] = useState('');
+  const [priority, setPriority] = useState('');
+  const [updating, setUpdating] = useState(false);
+  const [query, setQuery] = useState('');
+  const [filter, setFilter] = useState('All');
+
   const fetchGrievances = async () => {
-    setError('');
     try {
-      const response = await fetch('/api/grievances/', { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
+      const token = localStorage.getItem('token');
+      const response = await fetch('/api/grievances/', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!response.ok) throw new Error('Failed to fetch grievances');
       const data = await response.json();
-      if (!response.ok) throw new Error(data.detail || 'Unable to load grievances.');
       setGrievances(data);
-    } catch (requestError) { setError(requestError.message); } finally { setLoading(false); }
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  useEffect(() => { fetchGrievances(); }, []);
+  useEffect(() => {
+    fetchGrievances();
+  }, []);
 
-  const shown = useMemo(() => {
-    const search = query.trim().toLowerCase();
-    return grievances.filter((item) => {
-      const matchesSearch = !search || [item.tracking_id, item.description, item.location, item.category, item.department].filter(Boolean).join(' ').toLowerCase().includes(search);
-      return matchesSearch && (statusFilter === 'All' || item.status === statusFilter) && (priorityFilter === 'All' || item.priority === priorityFilter);
-    }).sort((a, b) => {
-      if (sort === 'priority') return (priorityRank[b.priority] || 0) - (priorityRank[a.priority] || 0);
-      if (sort === 'oldest') return new Date(a.created_at) - new Date(b.created_at);
-      return new Date(b.created_at) - new Date(a.created_at);
-    });
-  }, [grievances, priorityFilter, query, sort, statusFilter]);
-
-  const stats = [
-    ['Open cases', grievances.filter((item) => !['Resolved', 'Rejected'].includes(item.status)).length, ClipboardList, 'bg-primary-50 text-primary-700'],
-    ['In progress', grievances.filter((item) => item.status === 'In Progress').length, Clock3, 'bg-amber-50 text-amber-800'],
-    ['Resolved', grievances.filter((item) => item.status === 'Resolved').length, CheckCircle2, 'bg-emerald-50 text-emerald-800'],
-    ['Needs attention', grievances.filter((item) => ['Urgent', 'High'].includes(item.priority)).length, AlertTriangle, 'bg-red-50 text-red-800'],
-  ];
-
-  const openReview = (item) => { setSelected(item); setStatus(item.status); setPriority(item.priority || 'Unassigned'); setNote(''); setPlan(''); };
-  const updateCase = async (event) => {
-    event.preventDefault(); setUpdating(true);
+  const handleUpdate = async (e) => {
+    e.preventDefault();
+    setUpdating(true);
     try {
-      const response = await fetch(`/api/grievances/track/${selected.tracking_id}/status`, { method: 'PUT', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` }, body: JSON.stringify({ status, priority, note }) });
-      const data = await response.json(); if (!response.ok) throw new Error(data.detail || 'Unable to update this grievance.');
-      await fetchGrievances(); setSelected(null);
-    } catch (requestError) { setError(requestError.message); } finally { setUpdating(false); }
+      const token = localStorage.getItem('token');
+      const response = await fetch(`/api/grievances/track/${selectedGrievance.tracking_id}/status`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ status, note, priority })
+      });
+      
+      if (!response.ok) throw new Error('Update failed');
+      
+      // Refresh list and close modal
+      await fetchGrievances();
+      setSelectedGrievance(null);
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setUpdating(false);
+    }
   };
-  const generatePlan = async () => {
-    setGeneratingPlan(true); setPlan('');
-    try { const response = await fetch(`/api/grievances/track/${selected.tracking_id}/solution`, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }); const data = await response.json(); if (!response.ok) throw new Error(data.detail || 'Unable to generate an action plan.'); setPlan(data.solution_plan); } catch (requestError) { setError(requestError.message); } finally { setGeneratingPlan(false); }
+
+  const [solutionPlan, setSolutionPlan] = useState('');
+  const [generatingPlan, setGeneratingPlan] = useState(false);
+
+  const handleGeneratePlan = async () => {
+    setGeneratingPlan(true);
+    setSolutionPlan('');
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`/api/grievances/track/${selectedGrievance.tracking_id}/solution`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!res.ok) throw new Error('Failed to generate plan');
+      const data = await res.json();
+      setSolutionPlan(data.solution_plan);
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setGeneratingPlan(false);
+    }
   };
 
-  if (loading) return <div className="p-10 text-center text-slate-500">Loading officer workspace...</div>;
+  const openUpdateModal = (g) => {
+    setSelectedGrievance(g);
+    setStatus(g.status);
+    setPriority(g.priority);
+    setNote('');
+    setSolutionPlan('');
+  };
 
-  return <div className="mx-auto max-w-7xl px-5 py-8 md:py-10">
-    <div className="flex flex-col justify-between gap-5 md:flex-row md:items-end">
-      <div><p className="text-sm font-bold uppercase tracking-wide text-primary-600">Officer workspace</p><h1 className="mt-1 text-3xl font-bold text-slate-950">{departmentName} operations</h1><p className="mt-2 text-slate-600">Prioritise incoming grievances and keep citizens informed.</p></div>
-      <div className="rounded-lg border border-primary-100 bg-primary-50 px-4 py-3 text-sm text-primary-800"><span className="font-bold">AI triage enabled</span><span className="mx-2 text-primary-300">|</span>Priority and routing are applied at intake.</div>
-    </div>
+  const [activeTab, setActiveTab] = useState('grievances');
 
-    {error && <div role="alert" className="mt-6 flex items-center justify-between gap-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800"><span>{error}</span><button aria-label="Dismiss error" onClick={() => setError('')}><X className="h-4 w-4" /></button></div>}
-    <div className="mt-7 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">{stats.map(([label, value, Icon, tone]) => <Card key={label} density="admin" className="flex items-center gap-4 p-4"><span className={`grid h-11 w-11 place-items-center rounded-lg ${tone}`}><Icon className="h-5 w-5" /></span><div><p className="text-2xl font-bold text-slate-950">{value}</p><p className="text-sm text-slate-600">{label}</p></div></Card>)}</div>
+  if (loading) return <div className="p-8 text-center text-gray-500">Loading Dashboard...</div>;
+  if (error) return <div className="p-8 text-center text-red-500">{error}</div>;
 
-    {user.department === 'All' && <div className="mt-8 flex border-b border-slate-200"><button onClick={() => setActiveTab('grievances')} className={`border-b-2 px-4 py-3 text-sm font-bold ${activeTab === 'grievances' ? 'border-primary-600 text-primary-700' : 'border-transparent text-slate-500 hover:text-slate-800'}`}>Grievances</button><button onClick={() => setActiveTab('staff')} className={`border-b-2 px-4 py-3 text-sm font-bold ${activeTab === 'staff' ? 'border-primary-600 text-primary-700' : 'border-transparent text-slate-500 hover:text-slate-800'}`}>Manage officers</button></div>}
-    {activeTab === 'staff' ? <div className="mt-8"><ManageStaff /></div> : <>
-      <div className="mt-7 flex flex-col gap-3 lg:flex-row lg:items-center">
-        <label className="relative flex-1"><Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search ID, description, location, category..." className="h-11 w-full rounded-lg border border-slate-300 bg-white pl-10 pr-3 text-sm outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-100" /></label>
-        <div className="grid grid-cols-3 gap-2 sm:flex"><select aria-label="Filter by status" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className="h-11 rounded-lg border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700"><option>All</option><option>Submitted</option><option>In Progress</option><option>Resolved</option><option>Rejected</option></select><select aria-label="Filter by AI priority" value={priorityFilter} onChange={(event) => setPriorityFilter(event.target.value)} className="h-11 rounded-lg border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700"><option>All</option><option>Urgent</option><option>High</option><option>Medium</option><option>Low</option><option>Unassigned</option></select><select aria-label="Sort grievances" value={sort} onChange={(event) => setSort(event.target.value)} className="h-11 rounded-lg border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700"><option value="newest">Newest first</option><option value="oldest">Oldest first</option><option value="priority">Highest priority</option></select></div>
+  const shown = grievances.filter(g => (filter === 'All' || g.status === filter) && `${g.tracking_id} ${g.description} ${g.location}`.toLowerCase().includes(query.toLowerCase()));
+  const stats = [{ label:'Open cases', value: grievances.filter(g=>g.status !== 'Resolved').length, icon:ClipboardList, tone:'text-primary-600 bg-primary-50' }, { label:'In progress', value: grievances.filter(g=>g.status === 'In Progress').length, icon:Clock3, tone:'text-amber-700 bg-amber-50' }, { label:'Resolved', value: grievances.filter(g=>g.status === 'Resolved').length, icon:CheckCircle2, tone:'text-green-700 bg-green-50' }, { label:'High priority', value: grievances.filter(g=>['High','Urgent'].includes(g.priority)).length, icon:AlertTriangle, tone:'text-red-700 bg-red-50' }];
+  return (
+    <div className="max-w-7xl mx-auto mt-8">
+      <div className="flex justify-between items-center mb-6">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">{departmentName} Dashboard</h1>
+          <p className="text-gray-600 mt-2">Manage and resolve citizen grievances efficiently.</p>
+        </div>
       </div>
-      <div className="mt-3 flex items-center gap-2 text-sm text-slate-500"><SlidersHorizontal className="h-4 w-4" /><span>{shown.length} of {grievances.length} cases shown</span></div>
-      <Card density="admin" className="mt-4 overflow-hidden p-0"><div className="overflow-x-auto"><table className="w-full min-w-[920px] text-left"><thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500"><tr><th className="px-5 py-3 font-semibold">Case</th><th className="px-4 py-3 font-semibold">AI assessment</th><th className="px-4 py-3 font-semibold">Location</th><th className="px-4 py-3 font-semibold">Status</th><th className="px-4 py-3 font-semibold">Received</th><th className="px-5 py-3 text-right font-semibold">Action</th></tr></thead><tbody className="divide-y divide-slate-100">{shown.map((item) => <tr key={item.id} className="transition hover:bg-primary-50/40"><td className="px-5 py-4"><p className="font-mono text-xs font-bold text-primary-700">{item.tracking_id}</p><p className="mt-1 max-w-[260px] truncate text-sm font-medium text-slate-900">{item.description}</p></td><td className="px-4 py-4"><PriorityBadge priority={item.priority} /><p className="mt-1.5 text-xs text-slate-500">{item.category || 'Uncategorised'} · {item.sentiment || 'Neutral'}</p></td><td className="px-4 py-4 text-sm text-slate-600"><span className="flex max-w-[170px] items-center gap-1.5 truncate"><MapPin className="h-3.5 w-3.5 shrink-0 text-slate-400" />{item.location}</span></td><td className="px-4 py-4"><StatusBadge status={item.status} /></td><td className="px-4 py-4 text-sm text-slate-600">{formatDate(item.created_at)}</td><td className="px-5 py-4 text-right"><Button size="sm" variant="secondary" onClick={() => openReview(item)}>Review</Button></td></tr>)}{shown.length === 0 && <tr><td colSpan="6" className="px-5 py-14 text-center text-sm text-slate-500">No grievances match the current filters.</td></tr>}</tbody></table></div></Card>
-    </>}
 
-    {selected && <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 p-4"><Card className="max-h-[90vh] w-full max-w-3xl overflow-y-auto p-6 md:p-7"><div className="flex items-start justify-between gap-5"><div><p className="font-mono text-xs font-bold text-primary-700">{selected.tracking_id}</p><h2 className="mt-1 text-2xl font-bold text-slate-950">Review grievance</h2></div><button aria-label="Close review" onClick={() => setSelected(null)} className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"><X className="h-5 w-5" /></button></div>
-      <div className="mt-6 grid gap-3 sm:grid-cols-4"><div className="rounded-lg border border-primary-100 bg-primary-50 p-3"><p className="text-xs font-bold uppercase tracking-wide text-primary-700">AI category</p><p className="mt-1 text-sm font-semibold text-slate-900">{selected.category || 'Uncategorised'}</p></div><div className="rounded-lg border border-primary-100 bg-primary-50 p-3"><p className="text-xs font-bold uppercase tracking-wide text-primary-700">AI priority</p><div className="mt-1"><PriorityBadge priority={selected.priority} /></div></div><div className="rounded-lg border border-primary-100 bg-primary-50 p-3"><p className="text-xs font-bold uppercase tracking-wide text-primary-700">Sentiment</p><p className="mt-1 text-sm font-semibold text-slate-900">{selected.sentiment || 'Neutral'}</p></div><div className="rounded-lg border border-primary-100 bg-primary-50 p-3"><p className="text-xs font-bold uppercase tracking-wide text-primary-700">Department</p><p className="mt-1 text-sm font-semibold text-slate-900">{selected.department || 'Unassigned'}</p></div></div>
-      <div className="mt-6"><p className="text-xs font-bold uppercase tracking-wide text-slate-500">Citizen report</p><p className="mt-2 whitespace-pre-wrap leading-6 text-slate-800">{selected.description}</p><p className="mt-3 flex items-center gap-1.5 text-sm text-slate-600"><MapPin className="h-4 w-4" />{selected.location}</p></div>
-      {selected.evidence_url && <img src={selected.evidence_url} alt="Submitted evidence" className="mt-5 max-h-64 rounded-lg object-cover" />}
-      <div className="mt-6 border border-primary-100 bg-primary-50 p-4"><div className="flex flex-wrap items-center justify-between gap-3"><p className="flex items-center gap-2 text-sm font-bold text-primary-800"><Bot className="h-4 w-4" />AI resolution brief</p>{!plan && <Button size="sm" onClick={generatePlan} loading={generatingPlan} iconLeft={<Sparkles className="h-4 w-4" />}>Generate plan</Button>}</div>{plan ? <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-slate-700">{plan}</p> : !generatingPlan && <p className="mt-2 text-sm text-primary-700">Create a practical next-step plan based on the report, department, and priority.</p>}</div>
-      <form onSubmit={updateCase} className="mt-7 border-t border-slate-200 pt-6"><h3 className="text-lg font-bold text-slate-950">Update citizen</h3><div className="mt-4 grid gap-4 sm:grid-cols-2"><label className="grid gap-1.5 text-sm font-semibold text-slate-700"><span>Status</span><select value={status} onChange={(event) => setStatus(event.target.value)} className="h-11 rounded-lg border border-slate-300 bg-white px-3"><option>Submitted</option><option>In Progress</option><option>Resolved</option><option>Rejected</option></select></label><label className="grid gap-1.5 text-sm font-semibold text-slate-700"><span>Priority</span><select value={priority} onChange={(event) => setPriority(event.target.value)} className="h-11 rounded-lg border border-slate-300 bg-white px-3"><option>Unassigned</option><option>Low</option><option>Medium</option><option>High</option><option>Urgent</option></select></label></div><label className="mt-4 grid gap-1.5 text-sm font-semibold text-slate-700"><span>Update note</span><textarea required value={note} onChange={(event) => setNote(event.target.value)} rows="3" placeholder="Explain what changed and what happens next..." className="rounded-lg border border-slate-300 p-3 outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-100" /></label><div className="mt-5 flex justify-end gap-3"><Button type="button" variant="secondary" onClick={() => setSelected(null)}>Cancel</Button><Button type="submit" loading={updating}>Save update</Button></div></form>
-    </Card></div>}
-  </div>;
+      {user.department === 'All' && (
+        <div className="flex gap-4 mb-6 border-b border-gray-200">
+          <button 
+            className={`py-2 px-4 font-bold ${activeTab === 'grievances' ? 'text-primary-600 border-b-2 border-primary-600' : 'text-gray-500 hover:text-gray-700'}`}
+            onClick={() => setActiveTab('grievances')}
+          >
+            Grievances
+          </button>
+          <button 
+            className={`py-2 px-4 font-bold ${activeTab === 'staff' ? 'text-primary-600 border-b-2 border-primary-600' : 'text-gray-500 hover:text-gray-700'}`}
+            onClick={() => setActiveTab('staff')}
+          >
+            Manage Staff
+          </button>
+        </div>
+      )}
+
+      {activeTab === 'staff' ? (
+        <ManageStaff />
+      ) : (
+      <>
+
+      <Card className="overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="bg-gray-50 text-gray-600 border-b border-gray-200">
+                <th className="p-4 font-semibold text-sm">Tracking ID</th>
+                <th className="p-4 font-semibold text-sm">Date</th>
+                <th className="p-4 font-semibold text-sm">Description</th>
+                <th className="p-4 font-semibold text-sm">Location</th>
+                <th className="p-4 font-semibold text-sm">Status</th>
+                <th className="p-4 font-semibold text-sm">Action</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200">
+              {shown.map(g => (
+                <tr key={g.id} className="hover:bg-gray-50 transition-colors">
+                  <td className="p-4 font-mono text-sm text-gray-600">{g.tracking_id}</td>
+                  <td className="p-4 text-sm text-gray-600">{new Date(g.created_at).toLocaleDateString()}</td>
+                  <td className="p-4 text-sm text-gray-900 max-w-xs truncate">{g.description}</td>
+                  <td className="p-4 text-sm text-gray-600 truncate max-w-[150px]">{g.location}</td>
+                  <td className="p-4"><StatusBadge status={g.status} /></td>
+                  <td className="p-4">
+                    <Button variant="outline" size="sm" onClick={() => openUpdateModal(g)}>Review</Button>
+                  </td>
+                </tr>
+              ))}
+              {shown.length === 0 && (
+                <tr>
+                  <td colSpan="6" className="p-8 text-center text-gray-500">No grievances found.</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+
+      {selectedGrievance && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <h2 className="text-2xl font-bold mb-4">Review Grievance: {selectedGrievance.tracking_id}</h2>
+            
+            <div className="space-y-4 mb-6">
+              <div className="grid grid-cols-2 gap-4 bg-primary-50 p-4 rounded-xl border border-primary-100 mb-4">
+                <div>
+                  <p className="text-xs text-primary-600 font-bold uppercase tracking-wider mb-1">AI Category</p>
+                  <p className="font-semibold text-gray-900">{selectedGrievance.category || 'N/A'}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-primary-600 font-bold uppercase tracking-wider mb-1">Assigned Dept</p>
+                  <p className="font-semibold text-gray-900">{selectedGrievance.department}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-primary-600 font-bold uppercase tracking-wider mb-1">AI Priority</p>
+                  <span className={`px-2 py-1 rounded-md text-xs font-bold ${
+                    selectedGrievance.priority === 'Urgent' || selectedGrievance.priority === 'High' 
+                      ? 'bg-red-100 text-red-700' 
+                      : 'bg-blue-100 text-blue-700'
+                  }`}>
+                    {selectedGrievance.priority}
+                  </span>
+                </div>
+                <div>
+                  <p className="text-xs text-primary-600 font-bold uppercase tracking-wider mb-1">Citizen Sentiment</p>
+                  <p className="font-semibold text-gray-900">{selectedGrievance.sentiment}</p>
+                </div>
+              </div>
+
+              {selectedGrievance.duplicate_of && (
+                <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 p-4 rounded-xl flex gap-3 items-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                  <div>
+                    <p className="font-bold">Duplicate Detected</p>
+                    <p className="text-sm">The AI has flagged this as a potential duplicate of <span className="font-mono font-bold">{selectedGrievance.duplicate_of}</span>.</p>
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <p className="text-sm text-gray-500 font-semibold uppercase">Description</p>
+                <p className="text-gray-900">{selectedGrievance.description}</p>
+              </div>
+
+              {selectedGrievance.citizen_details ? (
+                <div className="mt-4 bg-gray-50 p-4 rounded-xl border border-gray-200">
+                  <p className="text-sm text-gray-500 font-semibold uppercase mb-3">Citizen Profile (Auto-Linked)</p>
+                  <div className="flex flex-col gap-3">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-xs text-gray-400 uppercase font-bold tracking-wider mb-1">Name</p>
+                        <p className="font-semibold text-gray-900">{selectedGrievance.citizen_details.full_name}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-400 uppercase font-bold tracking-wider mb-1">Phone</p>
+                        <p className="font-semibold text-gray-900">{selectedGrievance.citizen_details.phone || 'N/A'}</p>
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-400 uppercase font-bold tracking-wider mb-1">Email</p>
+                      <p className="font-semibold text-primary-600 break-all">{selectedGrievance.citizen_details.email}</p>
+                    </div>
+                  </div>
+                </div>
+              ) : selectedGrievance.contact_phone ? (
+                <div className="mt-4 bg-blue-50 p-4 rounded-xl border border-blue-200">
+                  <p className="text-sm text-blue-700 font-semibold uppercase mb-3 flex items-center gap-2">
+                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.539.818-1.084.508l-3-2.21-1.446 1.394c-.14.18-.357.223-.548.223l.216-3.05 5.546-5.02c.241-.213-.054-.334-.373-.121l-6.852 4.31-2.962-.924c-.643-.204-.657-.643.136-.953l11.57-4.458c.538-.196 1.006.128.832.941z"/></svg>
+                    Telegram Guest Profile
+                  </p>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-xs text-blue-600 uppercase font-bold tracking-wider mb-1">Name</p>
+                      <p className="font-semibold text-gray-900">{selectedGrievance.contact_name || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-blue-600 uppercase font-bold tracking-wider mb-1">Phone</p>
+                      <p className="font-semibold text-gray-900">{selectedGrievance.contact_phone}</p>
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+              <div>
+                <p className="text-sm text-gray-500 font-semibold uppercase">Location</p>
+                <p className="text-gray-900">{selectedGrievance.location}</p>
+              </div>
+              {selectedGrievance.evidence_url && (
+                <div>
+                  <p className="text-sm text-gray-500 font-semibold uppercase mb-2">Evidence Photo</p>
+                  <img src={selectedGrievance.evidence_url} alt="Evidence" className="rounded-xl max-h-64 object-cover" />
+                </div>
+              )}
+              
+              <div className="mt-6 bg-indigo-50 p-4 rounded-xl border border-indigo-100">
+                <div className="flex justify-between items-center mb-2">
+                  <p className="text-sm text-indigo-700 font-bold flex items-center gap-2">
+                    ✨ AI Suggested Action Plan
+                  </p>
+                  {!solutionPlan && (
+                    <Button size="sm" onClick={handleGeneratePlan} loading={generatingPlan} className="bg-indigo-600 hover:bg-indigo-700 text-white border-0">
+                      Generate Plan
+                    </Button>
+                  )}
+                </div>
+                {solutionPlan && (
+                  <div className="mt-3 text-indigo-900 text-sm whitespace-pre-wrap font-medium">
+                    {solutionPlan}
+                  </div>
+                )}
+                {!solutionPlan && !generatingPlan && (
+                  <p className="text-sm text-indigo-500">Click to automatically generate a step-by-step resolution plan for your field officers.</p>
+                )}
+              </div>
+            </div>
+
+            <hr className="my-6 border-gray-200" />
+
+            <form onSubmit={handleUpdate} className="space-y-4">
+              <h3 className="text-lg font-bold">Update Status</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-sm font-semibold text-gray-700">New Status</label>
+                  <select 
+                    value={status} 
+                    onChange={e => setStatus(e.target.value)}
+                    className="w-full px-4 py-2.5 rounded-xl border border-gray-300 bg-white"
+                  >
+                    <option value="Submitted">Submitted</option>
+                    <option value="In Progress">In Progress</option>
+                    <option value="Resolved">Resolved</option>
+                    <option value="Rejected">Rejected</option>
+                  </select>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-sm font-semibold text-gray-700">Priority</label>
+                  <select 
+                    value={priority} 
+                    onChange={e => setPriority(e.target.value)}
+                    className="w-full px-4 py-2.5 rounded-xl border border-gray-300 bg-white"
+                  >
+                    <option value="Unassigned">Unassigned</option>
+                    <option value="Low">Low</option>
+                    <option value="Medium">Medium</option>
+                    <option value="High">High</option>
+                    <option value="Urgent">Urgent</option>
+                  </select>
+                </div>
+              </div>
+              
+              <div className="space-y-1.5">
+                <label className="text-sm font-semibold text-gray-700">Resolution Note</label>
+                <textarea
+                  value={note}
+                  onChange={e => setNote(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-xl border border-gray-300"
+                  rows="3"
+                  placeholder="Explain the update to the citizen..."
+                  required
+                ></textarea>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4">
+                <Button variant="outline" type="button" onClick={() => setSelectedGrievance(null)}>Cancel</Button>
+                <Button type="submit" loading={updating}>Save Update</Button>
+              </div>
+            </form>
+          </Card>
+        </div>
+      )}
+      </>
+      )}
+    </div>
+  );
 };
 
 export default AdminDashboard;

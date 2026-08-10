@@ -8,6 +8,7 @@ class UserBase(BaseModel):
     phone: Optional[str] = None
     role: str = "citizen"
     department: str = "All"
+    telegram_chat_id: Optional[str] = None
     jailbreak_attempts: int = 0
 
 class UserCreate(UserBase):

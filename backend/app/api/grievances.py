@@ -61,6 +61,48 @@ async def create_grievance(
     doc = db_grievance.model_dump(by_alias=True)
     result = await db.grievances.insert_one(doc)
     
+    # --- SEND TO DEPARTMENT ON TELEGRAM ---
+    dept_name = ai_analysis.get("department", "Unassigned")
+    dept_admin = await db.users.find_one({"role": "admin", "department": dept_name, "telegram_chat_id": {"$exists": True, "$ne": ""}})
+    
+    if dept_admin and dept_admin.get("telegram_chat_id"):
+        target_group_id = dept_admin["telegram_chat_id"]
+        
+        c_name = grievance.contact_name or current_user.get("full_name", "Citizen")
+        c_phone = grievance.contact_phone or current_user.get("phone", "N/A")
+        c_email = grievance.contact_email or current_user.get("email", "N/A")
+        
+        if grievance.contact_name and current_user.get("full_name") and grievance.contact_name != current_user.get("full_name"):
+            c_name = f"{grievance.contact_name} (Account: {current_user.get('full_name')})"
+        if grievance.contact_phone and current_user.get("phone") and grievance.contact_phone != current_user.get("phone"):
+            c_phone = f"{grievance.contact_phone} (Account: {current_user.get('phone')})"
+        if grievance.contact_email and current_user.get("email") and grievance.contact_email != current_user.get("email"):
+            c_email = f"{grievance.contact_email} (Account: {current_user.get('email')})"
+        
+        officer_msg = (
+            f"*New Grievance Assigned to {dept_name}*\n\n"
+            f"*Tracking ID:* `{tracking_id}`\n"
+            f"*Category:* {grievance_dict.get('category', 'General')}\n"
+            f"*Priority:* {ai_analysis.get('priority', 'Medium')}\n"
+            f"*Location:* {grievance.location}\n\n"
+            f"*Description:* {grievance.description}\n\n"
+            f"*Reporter Name:* {c_name}\n"
+            f"*Reporter Phone:* {c_phone}\n"
+            f"*Reporter Email:* {c_email}"
+        )
+        
+        try:
+            import httpx
+            from app.core.config import settings
+            token = settings.TELEGRAM_BOT_TOKEN
+            if token:
+                url = f"https://api.telegram.org/bot{token}/sendMessage"
+                async with httpx.AsyncClient() as client:
+                    await client.post(url, json={"chat_id": target_group_id, "text": officer_msg, "parse_mode": "Markdown"})
+        except Exception as e:
+            print(f"Could not send to department group {target_group_id}: {e}")
+    # --------------------------------------
+    
     created_grievance = await db.grievances.find_one({"_id": result.inserted_id})
     created_grievance["id"] = str(created_grievance.pop("_id"))
     

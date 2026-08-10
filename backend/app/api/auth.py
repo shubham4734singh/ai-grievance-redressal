@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, Depends, status
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, List
 from app.core.database import get_database
 from app.core.security import verify_password, get_password_hash, create_access_token
 from app.api.deps import get_current_user
@@ -88,3 +88,46 @@ async def create_admin(
     created_user["id"] = str(created_user.pop("_id"))
     
     return UserResponse(**created_user)
+
+@router.get("/staff", response_model=List[UserResponse])
+async def get_staff(
+    db: AsyncIOMotorDatabase = Depends(get_database),
+    current_user: dict = Depends(get_current_user)
+):
+    if current_user.get("role") != "admin" or current_user.get("department") != "All":
+        raise HTTPException(status_code=403, detail="Only Super Admins can view staff accounts")
+        
+    cursor = db.users.find({"role": "admin", "department": {"$ne": "All"}})
+    staff_list = await cursor.to_list(length=100)
+    
+    for staff in staff_list:
+        staff["id"] = str(staff.pop("_id"))
+        
+    return [UserResponse(**staff) for staff in staff_list]
+
+class UpdateStaffRequest(BaseModel):
+    full_name: str
+    email: str
+    department: str
+    telegram_chat_id: str
+
+@router.put("/staff/{user_id}")
+async def update_staff(
+    user_id: str,
+    update_data: UpdateStaffRequest,
+    db: AsyncIOMotorDatabase = Depends(get_database),
+    current_user: dict = Depends(get_current_user)
+):
+    if current_user.get("role") != "admin" or current_user.get("department") != "All":
+        raise HTTPException(status_code=403, detail="Only Super Admins can update staff accounts")
+        
+    await db.users.update_one(
+        {"_id": ObjectId(user_id)},
+        {"$set": {
+            "full_name": update_data.full_name,
+            "email": update_data.email,
+            "department": update_data.department,
+            "telegram_chat_id": update_data.telegram_chat_id
+        }}
+    )
+    return {"status": "success"}
