@@ -28,7 +28,7 @@ const Home = () => {
   return <div className="overflow-hidden pb-16">
     <section className="hero-carousel relative isolate overflow-hidden bg-[#09284a] text-white">
       {slides.map((item, index) => <div key={item.image} aria-hidden="true" className={`hero-image absolute inset-0 ${index === active ? 'hero-image-active' : ''}`} style={{ backgroundImage: `url(${item.image})` }}/>) }
-      <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(3,20,41,.9)_0%,rgba(5,31,58,.72)_45%,rgba(3,18,34,.34)_100%)]"/><div className="absolute inset-0 hero-grid opacity-20"/><div className="hero-orb hero-orb-one"/>
+      <div className="absolute inset-0 bg-[#061c33]/70"/>
       <div className="relative max-w-7xl mx-auto min-h-[570px] md:min-h-[640px] px-5 py-16 md:py-20 flex items-center">
         <div className="max-w-3xl animate-rise" key={active}><div className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/10 px-3.5 py-2 text-xs font-bold tracking-[.12em] uppercase backdrop-blur-md"><Sparkles className="w-3.5 h-3.5 text-[#7de0bd]"/>{slide.eyebrow}</div><h1 className="mt-6 text-[2.75rem] sm:text-6xl md:text-7xl leading-[.98] font-bold tracking-[-.055em]">{slide.title}<br/><span className="text-[#8ee4c5]">{slide.accent}</span></h1><p className="mt-6 max-w-xl text-lg md:text-xl leading-8 text-blue-50/90">{slide.copy}</p><div className="mt-8 flex flex-col sm:flex-row gap-3"><Link to={slide.to} className="button-lift inline-flex min-h-[54px] items-center justify-center gap-2 rounded-xl bg-white px-6 font-bold text-[#123d6f] shadow-[0_12px_28px_rgba(0,0,0,.2)] hover:bg-[#dff8ed]"><SlideIcon className="w-5 h-5"/>{slide.cta}<ArrowRight className="w-4 h-4"/></Link><Link to="/track" className="button-lift inline-flex min-h-[54px] items-center justify-center gap-2 rounded-xl border border-white/35 bg-white/10 px-6 font-bold text-white backdrop-blur-sm hover:bg-white/20"><Search className="w-5 h-5"/> Track status</Link></div><div className="mt-10 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm font-medium text-blue-100"><span className="flex items-center gap-1.5"><CircleCheck className="w-4 h-4 text-[#7de0bd]"/> Secure by design</span><span className="flex items-center gap-1.5"><CircleCheck className="w-4 h-4 text-[#7de0bd]"/> Multilingual support</span><span className="flex items-center gap-1.5"><CircleCheck className="w-4 h-4 text-[#7de0bd]"/> Transparent updates</span></div></div>
         <div className="absolute right-5 bottom-8 md:bottom-12 flex items-center gap-3"><button aria-label="Previous slide" onClick={previous} className="carousel-control"><ChevronLeft className="w-5 h-5"/></button><div className="flex gap-2">{slides.map((item,index)=><button key={item.image} aria-label={`Go to slide ${index+1}`} onClick={()=>setActive(index)} className={`carousel-dot ${active===index?'carousel-dot-active':''}`}/>)}</div><button aria-label="Next slide" onClick={next} className="carousel-control"><ChevronRight className="w-5 h-5"/></button></div>
@@ -58,12 +58,17 @@ function App() {
   // Translation Logic
   useEffect(() => {
     window.googleTranslateElementInit = () => {
+      const translateContainer = document.getElementById('google_translate_element');
+      if (!translateContainer || translateContainer.dataset.initialized === 'true') return;
       new window.google.translate.TranslateElement(
         { pageLanguage: 'en', includedLanguages: 'en,hi,mr,gu,ta,te,bn', autoDisplay: false },
         'google_translate_element'
       );
+      translateContainer.dataset.initialized = 'true';
     };
+    if (document.getElementById('google-translate-script')) return;
     const addScript = document.createElement('script');
+    addScript.id = 'google-translate-script';
     addScript.setAttribute('src', '//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit');
     document.body.appendChild(addScript);
   }, []);

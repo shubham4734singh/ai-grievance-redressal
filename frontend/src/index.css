@@ -23,3 +23,60 @@ body {
     @apply font-sans antialiased bg-surface-bg text-gray-900;
   }
 }
+
+@layer components {
+  .hero-carousel {
+    min-height: 570px;
+  }
+
+  .hero-image {
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: cover;
+    opacity: 0;
+    transform: scale(1.045);
+    transition: opacity 700ms ease, transform 7s ease;
+  }
+
+  .hero-image-active {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  .animate-rise {
+    animation: rise-in 550ms ease-out both;
+  }
+
+  .carousel-control {
+    @apply grid h-10 w-10 place-items-center rounded-lg border border-white/35 bg-[#061c33]/45 text-white transition hover:bg-white hover:text-primary-700 focus:outline-none focus:ring-2 focus:ring-white;
+  }
+
+  .carousel-dot {
+    @apply h-2.5 w-2.5 rounded-full bg-white/45 transition-all duration-300 hover:bg-white;
+  }
+
+  .carousel-dot-active {
+    @apply w-7 bg-white;
+  }
+
+  .service-card {
+    @apply transition duration-300 hover:-translate-y-1 hover:border-primary-100 hover:shadow-lg;
+  }
+
+  .button-lift {
+    @apply transition duration-300 hover:-translate-y-0.5;
+  }
+}
+
+@keyframes rise-in {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (min-width: 768px) {
+  .hero-carousel { min-height: 640px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-image, .animate-rise, .service-card, .button-lift, .carousel-dot { animation: none; transition: none; transform: none; }
+}
