@@ -3,10 +3,15 @@ import logging
 from telegram import Update, KeyboardButton, ReplyKeyboardMarkup, ReplyKeyboardRemove
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes, ConversationHandler
 from app.core.config import settings
-from app.services.nlp import categorize_grievance
-from app.api.grievances import generate_tracking_id
 from app.models.grievance import GrievanceInDB, StatusHistoryEntry
 from motor.motor_asyncio import AsyncIOMotorClient
+import httpx
+import string
+import secrets
+
+def generate_tracking_id():
+    chars = string.ascii_uppercase + string.digits
+    return "GRV-" + "".join(secrets.choice(chars) for _ in range(8))
 
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -140,8 +145,15 @@ async def handle_location(update: Update, context: ContextTypes.DEFAULT_TYPE):
     phone_number = context.user_data['phone_number']
     first_name = context.user_data['first_name']
     
-    # Run AI Categorization
-    ai_analysis = await categorize_grievance(description)
+    # Request NLP analysis from the local FastAPI server instead of loading the model
+    async with httpx.AsyncClient() as client:
+        try:
+            res = await client.post("http://localhost:8000/api/internal/categorize", json={"text": description}, timeout=30.0)
+            ai_analysis = res.json()
+        except Exception as e:
+            logging.error(f"Failed to reach internal NLP endpoint: {e}")
+            ai_analysis = {"category": "General", "department": "Unassigned", "priority": "Medium", "sentiment": "Neutral"}
+
     tracking_id = generate_tracking_id()
     
     initial_history = StatusHistoryEntry(

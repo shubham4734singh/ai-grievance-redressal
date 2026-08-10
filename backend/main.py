@@ -52,3 +52,14 @@ app.include_router(notifications.router, prefix="/api/notifications", tags=["not
 @app.get("/")
 async def root():
     return {"message": "AI-Grievance-Redressal API", "status": "running"}
+
+from pydantic import BaseModel
+class NlpRequest(BaseModel):
+    text: str
+
+@app.post("/api/internal/categorize")
+async def internal_categorize(req: NlpRequest):
+    # Only import NLP when needed to avoid loading it in other scripts
+    from app.services.nlp import categorize_grievance
+    return await categorize_grievance(req.text)
+
