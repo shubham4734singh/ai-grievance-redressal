@@ -45,6 +45,33 @@ async def handle_contact(update: Update, context: ContextTypes.DEFAULT_TYPE):
         phone_number = contact.phone_number
         first_name = contact.first_name
         
+        # Check if an admin mistakenly put their phone number in the TG ID field
+        client = AsyncIOMotorClient(settings.MONGODB_URL)
+        db = client[settings.DATABASE_NAME]
+        chat_id = str(update.message.chat_id)
+        normalized_phone = phone_number.replace("+91", "").replace("+", "").replace(" ", "").strip()
+        
+        admin_fallback = await db.users.find_one({
+            "role": "admin",
+            "telegram_chat_id": {"$regex": f"{normalized_phone}$"}
+        })
+        
+        if admin_fallback:
+            # Auto-correct their TG ID in the database
+            await db.users.update_one(
+                {"_id": admin_fallback["_id"]},
+                {"$set": {"telegram_chat_id": chat_id}}
+            )
+            await update.message.reply_text(
+                f"Welcome *{admin_fallback['full_name']}*!\n\n"
+                f"We noticed you entered your phone number in the Admin Dashboard instead of your Telegram Chat ID. We have automatically fixed it and linked your account!\n\n"
+                f"You are successfully connected as the Admin for *{admin_fallback['department']}*.\n"
+                "You will now receive all new grievances for your department directly in this chat.",
+                parse_mode="Markdown",
+                reply_markup=ReplyKeyboardRemove()
+            )
+            return ConversationHandler.END
+        
         context.user_data['phone_number'] = phone_number
         context.user_data['first_name'] = first_name
         
