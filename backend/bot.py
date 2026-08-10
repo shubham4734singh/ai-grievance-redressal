@@ -32,9 +32,29 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"Welcome *{admin['full_name']}*!\n\n"
             f"You are successfully connected as the Admin for *{admin['department']}*.\n"
             "You will now receive all new grievances for your department directly in this chat.",
-            parse_mode="Markdown"
+            parse_mode="Markdown",
+            reply_markup=ReplyKeyboardRemove()
         )
         return ConversationHandler.END
+
+    # Check if we already know this user from a previous complaint
+    existing_grievance = await db.grievances.find_one({"telegram_chat_id": update.message.chat_id})
+    if existing_grievance and existing_grievance.get("contact_phone"):
+        phone_number = existing_grievance["contact_phone"]
+        first_name = existing_grievance.get("contact_name", "Citizen")
+        
+        context.user_data['phone_number'] = phone_number
+        context.user_data['first_name'] = first_name
+        
+        await update.message.reply_text(
+            f"Welcome back, {first_name}!\n\n"
+            "Please describe your new civic issue. *(Please also write the exact location/address in your description)*. You can:\n"
+            "- *Type* a detailed description\n"
+            "- *Send a photo* with a caption describing the issue.",
+            parse_mode="Markdown",
+            reply_markup=ReplyKeyboardRemove()
+        )
+        return GRIEVANCE_INPUT
 
     contact_button = KeyboardButton("Share Contact Number", request_contact=True)
     reply_markup = ReplyKeyboardMarkup([[contact_button]], one_time_keyboard=True, resize_keyboard=True)
