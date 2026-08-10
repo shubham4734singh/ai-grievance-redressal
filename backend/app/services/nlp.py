@@ -15,7 +15,7 @@ async def categorize_grievance(description: str) -> dict:
     - priority: string (Choose one: Low, Medium, High, Urgent. Urgent is for life-threatening or severe issues)
     - sentiment: string (Choose one: Positive, Neutral, Negative, Angry)
     
-    CRITICAL: Carefully analyze the ROOT CAUSE of the problem (e.g., if it says 'electrical problem', it MUST go to 'Electricity Board' and 'Electricity', regardless of the user saying 'public safety'). Focus on the actual issue, ignore typos.
+    CRITICAL: Carefully analyze the ROOT CAUSE of the problem (e.g., if it says 'electrical problem', it MUST go to 'Electricity Board' and 'Electricity', regardless of the user saying 'public safety'). Focus on the actual issue, ignore typos. For cases involving sexual harassment, abuse, or stalking, you MUST assign it to the "Police & Security" department and mark the priority as "Urgent".
     
     Description: {description}
     """
