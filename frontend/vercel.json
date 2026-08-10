@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "https://ai-grievance-redressal-fdr4.onrender.com/api/$1"
+    }
+  ]
+}
