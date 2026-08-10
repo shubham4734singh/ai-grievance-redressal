@@ -4,7 +4,7 @@
 
 ---
 
-## What We Are Building
+## What We Are Building - 
 
 A platform where citizens file complaints against government services — water, electricity, roads, sanitation — **in their own language**, using **text, voice, or a chatbot**. An AI pipeline behind the scenes:
 
