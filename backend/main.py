@@ -1,11 +1,37 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.api import grievances, auth, health, upload, chat, notifications
+import asyncio
+import httpx
+import os
+from contextlib import asynccontextmanager
+
+async def keep_alive():
+    # Render automatically provides RENDER_EXTERNAL_URL for web services
+    url = os.getenv("RENDER_EXTERNAL_URL", "http://localhost:8000")
+    health_url = f"{url}/api/health"
+    async with httpx.AsyncClient() as client:
+        while True:
+            await asyncio.sleep(600)  # 10 minutes
+            try:
+                await client.get(health_url)
+                print(f"Keep-alive ping successful: {health_url}")
+            except Exception as e:
+                print(f"Keep-alive ping failed: {e}")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Start the keep-alive task in the background
+    task = asyncio.create_task(keep_alive())
+    yield
+    # Cancel the task when the server shuts down
+    task.cancel()
 
 app = FastAPI(
     title="AI-Grievance-Redressal",
     description="AI-Driven Citizen Grievance Redressal System",
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=lifespan
 )
 
 app.add_middleware(
