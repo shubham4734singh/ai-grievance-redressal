@@ -67,6 +67,9 @@ const Chatbot = () => {
       })
     });
 
+    if (response.status === 401) {
+      throw new Error('AUTH_REQUIRED');
+    }
     if (!response.ok) throw new Error('Failed to get response');
     return response.json();
   };
@@ -137,16 +140,17 @@ const Chatbot = () => {
         
         try {
           const token = localStorage.getItem('token');
-          const res = await fetch('/api/upload/audio', {
+      const res = await fetch('/api/upload/audio', {
             method: 'POST',
             headers: { 'Authorization': token ? `Bearer ${token}` : '' },
             body: data
           });
+          if (res.status === 401) throw new Error('AUTH_REQUIRED');
           if (!res.ok) throw new Error('Transcription failed');
           const result = await res.json();
           setInput(prev => prev ? prev + ' ' + result.transcript : result.transcript);
         } catch (err) {
-          alert('Voice transcription failed. Please try typing instead.');
+          alert(err.message === 'AUTH_REQUIRED' ? 'Please sign in again before using voice input.' : 'Voice transcription failed. Please try typing instead.');
         }
       };
       
@@ -180,6 +184,7 @@ const Chatbot = () => {
         headers: { 'Authorization': token ? `Bearer ${token}` : '' },
         body: data
       });
+      if (res.status === 401) throw new Error('AUTH_REQUIRED');
       if (!res.ok) throw new Error('Upload failed');
 
       const result = await res.json();
@@ -193,7 +198,7 @@ const Chatbot = () => {
         }
       ]);
     } catch (err) {
-      setUploadError('Image upload failed. Please try again.');
+      setUploadError(err.message === 'AUTH_REQUIRED' ? 'Please sign in again before attaching an image.' : 'Image upload failed. Please try again.');
     } finally {
       setUploadingEvidence(false);
       event.target.value = '';
@@ -254,7 +259,9 @@ const Chatbot = () => {
       const data = await sendChatRequest(messagesForServer, currentLocation);
       addAssistantReply(newMessages, data);
     } catch (error) {
-      const reply = awaitingLocationConsent && isAffirmative(input)
+      const reply = error.message === 'AUTH_REQUIRED'
+        ? 'Please sign in to use the grievance assistant. If you are already signed in, your session may have expired, so sign out and sign in again.'
+        : awaitingLocationConsent && isAffirmative(input)
         ? "I couldn't access your current location. Please type the problem location with the nearest landmark or street."
         : "I'm having trouble connecting to the server right now. Please try again later.";
       setAwaitingLocationConsent(false);

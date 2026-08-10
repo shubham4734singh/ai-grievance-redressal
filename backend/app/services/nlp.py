@@ -66,3 +66,54 @@ async def generate_solution_plan(description: str, department: str, priority: st
         return response.choices[0].message.content.strip()
     except Exception as e:
         return "1. Review the grievance details.\n2. Contact the citizen if more info is needed.\n3. Dispatch the appropriate field team."
+
+async def generate_officer_summary(
+    description: str,
+    location: str,
+    department: str,
+    priority: str,
+    sentiment: str,
+    duplicate_of: str | None = None,
+    has_evidence: bool = False,
+) -> str:
+    prompt = f"""
+    You are an expert civic operations analyst preparing a compact briefing for a government officer.
+
+    Grievance Description: "{description}"
+    Location: {location}
+    Assigned Department: {department}
+    Priority: {priority}
+    Citizen Sentiment: {sentiment}
+    Duplicate Of: {duplicate_of or "None"}
+    Evidence Image Attached: {"Yes" if has_evidence else "No"}
+
+    Write a practical officer-facing summary with exactly these labels:
+    Issue:
+    Urgency:
+    Duplicate Risk:
+    Evidence:
+    First Action:
+
+    Keep the whole summary under 120 words. Be specific, operational, and avoid markdown tables.
+    """
+
+    try:
+        response = await client.chat.completions.create(
+            messages=[
+                {"role": "system", "content": "You write concise operational summaries for civic grievance officers."},
+                {"role": "user", "content": prompt}
+            ],
+            model="llama-3.1-8b-instant",
+            temperature=0.2
+        )
+        return response.choices[0].message.content.strip()
+    except Exception as e:
+        duplicate_text = f"Related to {duplicate_of}." if duplicate_of else "No duplicate currently linked."
+        evidence_text = "Evidence image is attached." if has_evidence else "No evidence image attached."
+        return (
+            f"Issue: {description}\n"
+            f"Urgency: {priority} priority for {department} based on {sentiment.lower()} citizen sentiment.\n"
+            f"Duplicate Risk: {duplicate_text}\n"
+            f"Evidence: {evidence_text}\n"
+            f"First Action: Verify the location, contact the citizen if needed, and assign the field team."
+        )

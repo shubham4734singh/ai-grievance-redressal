@@ -27,6 +27,9 @@ class GrievanceInDB(GrievanceCreate):
     department: str = "Unassigned"
     sentiment: str = "Neutral"
     duplicate_of: Optional[str] = None
+    feedback_rating: Optional[int] = None
+    feedback_comment: Optional[str] = None
+    feedback_submitted_at: Optional[datetime] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
     history: List[StatusHistoryEntry] = []
     user_id: Optional[str] = None

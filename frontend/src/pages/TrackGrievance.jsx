@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ClipboardCheck, Clock3, Hash, MapPin, Search, Sparkles } from 'lucide-react';
+import { ClipboardCheck, Hash, MapPin, Search, Sparkles, Star } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -15,6 +15,10 @@ const TrackGrievance = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [grievance, setGrievance] = useState(null);
+  const [feedbackRating, setFeedbackRating] = useState(5);
+  const [feedbackComment, setFeedbackComment] = useState('');
+  const [feedbackLoading, setFeedbackLoading] = useState(false);
+  const [feedbackError, setFeedbackError] = useState('');
 
   const fetchGrievance = async (idToFetch) => {
     if (!idToFetch) return;
@@ -52,6 +56,36 @@ const TrackGrievance = () => {
   const handleSubmit = (e) => {
     e.preventDefault();
     fetchGrievance(trackingId);
+  };
+
+  const submitFeedback = async (event) => {
+    event.preventDefault();
+    if (!grievance) return;
+
+    setFeedbackLoading(true);
+    setFeedbackError('');
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`/api/grievances/track/${grievance.tracking_id}/feedback`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          rating: feedbackRating,
+          comment: feedbackComment
+        })
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.detail || 'Unable to submit feedback.');
+      setGrievance(data);
+      setFeedbackComment('');
+    } catch (err) {
+      setFeedbackError(err.message);
+    } finally {
+      setFeedbackLoading(false);
+    }
   };
 
   const steps = ['Submitted', 'Reviewed', 'Assigned', 'In Progress', 'Resolved'];
@@ -94,6 +128,51 @@ const TrackGrievance = () => {
                 ))}
               </div>
             </Card><div className="rounded-xl border border-[#d6e5f0] bg-[#f4f9fd] p-5 flex gap-3"><Sparkles className="shrink-0 w-5 h-5 text-primary-500"/><p className="text-sm text-slate-600"><span className="font-bold text-slate-800">Need help understanding an update?</span> Use the help button in the bottom right to ask in simple language.</p></div>
+            {grievance.status === 'Resolved' && (
+              <Card>
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <p className="text-sm font-bold uppercase tracking-wide text-primary-600">Citizen feedback</p>
+                    <h2 className="mt-1 text-xl font-bold text-slate-900">How was the resolution?</h2>
+                  </div>
+                  {grievance.feedback_rating && <span className="rounded-full bg-emerald-50 px-3 py-1 text-sm font-bold text-emerald-700">Submitted</span>}
+                </div>
+                {grievance.feedback_rating ? (
+                  <div className="mt-4 rounded-xl border border-emerald-100 bg-emerald-50 p-4">
+                    <div className="flex items-center gap-1 text-emerald-700">
+                      {Array.from({ length: grievance.feedback_rating }).map((_, index) => <Star key={index} className="h-5 w-5 fill-current" />)}
+                    </div>
+                    {grievance.feedback_comment && <p className="mt-3 text-sm text-slate-700">{grievance.feedback_comment}</p>}
+                    <p className="mt-2 text-xs text-slate-500">Thanks. Your feedback helps improve service quality.</p>
+                  </div>
+                ) : (
+                  <form onSubmit={submitFeedback} className="mt-4 space-y-4">
+                    <div>
+                      <p className="mb-2 text-sm font-semibold text-slate-700">Rating</p>
+                      <div className="flex gap-2">
+                        {[1, 2, 3, 4, 5].map((rating) => (
+                          <button
+                            key={rating}
+                            type="button"
+                            onClick={() => setFeedbackRating(rating)}
+                            className={`grid h-10 w-10 place-items-center rounded-full border ${feedbackRating >= rating ? 'border-amber-300 bg-amber-50 text-amber-600' : 'border-slate-200 bg-white text-slate-300'}`}
+                            aria-label={`${rating} star rating`}
+                          >
+                            <Star className={`h-5 w-5 ${feedbackRating >= rating ? 'fill-current' : ''}`} />
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <label className="grid gap-1.5 text-sm font-semibold text-slate-700">
+                      <span>Comment</span>
+                      <textarea value={feedbackComment} onChange={(event) => setFeedbackComment(event.target.value)} rows="3" placeholder="Tell us what went well or what could improve..." className="rounded-lg border border-slate-300 p-3 outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-100" />
+                    </label>
+                    {feedbackError && <div className="rounded-lg border border-red-100 bg-red-50 p-3 text-sm text-red-700">{feedbackError}</div>}
+                    <Button type="submit" loading={feedbackLoading}>Submit feedback</Button>
+                  </form>
+                )}
+              </Card>
+            )}
           </div>
           
           <div className="space-y-6">

@@ -233,6 +233,8 @@ const AdminDashboard = () => {
   const [updating, setUpdating] = useState(false);
   const [plan, setPlan] = useState('');
   const [generatingPlan, setGeneratingPlan] = useState(false);
+  const [summary, setSummary] = useState('');
+  const [generatingSummary, setGeneratingSummary] = useState(false);
   const user = JSON.parse(localStorage.getItem('user') || '{}');
   const departmentName = user.department === 'All' ? 'Central' : user.department || 'Central';
 
@@ -267,7 +269,7 @@ const AdminDashboard = () => {
     ['Needs attention', grievances.filter((item) => ['Urgent', 'High'].includes(item.priority)).length, AlertTriangle, 'bg-red-50 text-red-800'],
   ];
 
-  const openReview = (item) => { setSelected(item); setStatus(item.status); setPriority(item.priority || 'Unassigned'); setNote(''); setPlan(''); };
+  const openReview = (item) => { setSelected(item); setStatus(item.status); setPriority(item.priority || 'Unassigned'); setNote(''); setPlan(''); setSummary(''); };
   const updateCase = async (event) => {
     event.preventDefault(); setUpdating(true);
     try {
@@ -279,6 +281,10 @@ const AdminDashboard = () => {
   const generatePlan = async () => {
     setGeneratingPlan(true); setPlan('');
     try { const response = await fetch(`/api/grievances/track/${selected.tracking_id}/solution`, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }); const data = await response.json(); if (!response.ok) throw new Error(data.detail || 'Unable to generate an action plan.'); setPlan(data.solution_plan); } catch (requestError) { setError(requestError.message); } finally { setGeneratingPlan(false); }
+  };
+  const generateSummary = async () => {
+    setGeneratingSummary(true); setSummary('');
+    try { const response = await fetch(`/api/grievances/track/${selected.tracking_id}/summary`, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }); const data = await response.json(); if (!response.ok) throw new Error(data.detail || 'Unable to generate an officer summary.'); setSummary(data.summary); } catch (requestError) { setError(requestError.message); } finally { setGeneratingSummary(false); }
   };
 
   if (loading) return <div className="p-10 text-center text-slate-500">Loading officer workspace...</div>;
@@ -306,6 +312,7 @@ const AdminDashboard = () => {
       <div className="mt-6 grid gap-3 sm:grid-cols-4"><div className="rounded-lg border border-primary-100 bg-primary-50 p-3"><p className="text-xs font-bold uppercase tracking-wide text-primary-700">AI category</p><p className="mt-1 text-sm font-semibold text-slate-900">{selected.category || 'Uncategorised'}</p></div><div className="rounded-lg border border-primary-100 bg-primary-50 p-3"><p className="text-xs font-bold uppercase tracking-wide text-primary-700">AI priority</p><div className="mt-1"><PriorityBadge priority={selected.priority} /></div></div><div className="rounded-lg border border-primary-100 bg-primary-50 p-3"><p className="text-xs font-bold uppercase tracking-wide text-primary-700">Sentiment</p><p className="mt-1 text-sm font-semibold text-slate-900">{selected.sentiment || 'Neutral'}</p></div><div className="rounded-lg border border-primary-100 bg-primary-50 p-3"><p className="text-xs font-bold uppercase tracking-wide text-primary-700">Department</p><p className="mt-1 text-sm font-semibold text-slate-900">{selected.department || 'Unassigned'}</p></div></div>
       <div className="mt-6"><p className="text-xs font-bold uppercase tracking-wide text-slate-500">Citizen report</p><p className="mt-2 whitespace-pre-wrap leading-6 text-slate-800">{selected.description}</p><p className="mt-3 flex items-center gap-1.5 text-sm text-slate-600"><MapPin className="h-4 w-4" />{selected.location}</p></div>
       {selected.evidence_url && <img src={selected.evidence_url} alt="Submitted evidence" className="mt-5 max-h-64 rounded-lg object-cover" />}
+      <div className="mt-6 border border-emerald-100 bg-emerald-50 p-4"><div className="flex flex-wrap items-center justify-between gap-3"><p className="flex items-center gap-2 text-sm font-bold text-emerald-900"><Bot className="h-4 w-4" />AI officer summary</p>{!summary && <Button size="sm" onClick={generateSummary} loading={generatingSummary} iconLeft={<Sparkles className="h-4 w-4" />}>Generate summary</Button>}</div>{summary ? <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-slate-700">{summary}</p> : !generatingSummary && <p className="mt-2 text-sm text-emerald-800">Create a short operational brief with urgency, duplicate risk, evidence status, and first action.</p>}</div>
       <div className="mt-6 border border-primary-100 bg-primary-50 p-4"><div className="flex flex-wrap items-center justify-between gap-3"><p className="flex items-center gap-2 text-sm font-bold text-primary-800"><Bot className="h-4 w-4" />AI resolution brief</p>{!plan && <Button size="sm" onClick={generatePlan} loading={generatingPlan} iconLeft={<Sparkles className="h-4 w-4" />}>Generate plan</Button>}</div>{plan ? <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-slate-700">{plan}</p> : !generatingPlan && <p className="mt-2 text-sm text-primary-700">Create a practical next-step plan based on the report, department, and priority.</p>}</div>
       <form onSubmit={updateCase} className="mt-7 border-t border-slate-200 pt-6"><h3 className="text-lg font-bold text-slate-950">Update citizen</h3><div className="mt-4 grid gap-4 sm:grid-cols-2"><label className="grid gap-1.5 text-sm font-semibold text-slate-700"><span>Status</span><select value={status} onChange={(event) => setStatus(event.target.value)} className="h-11 rounded-lg border border-slate-300 bg-white px-3"><option>Submitted</option><option>In Progress</option><option>Resolved</option><option>Rejected</option></select></label><label className="grid gap-1.5 text-sm font-semibold text-slate-700"><span>Priority</span><select value={priority} onChange={(event) => setPriority(event.target.value)} className="h-11 rounded-lg border border-slate-300 bg-white px-3"><option>Unassigned</option><option>Low</option><option>Medium</option><option>High</option><option>Urgent</option></select></label></div><label className="mt-4 grid gap-1.5 text-sm font-semibold text-slate-700"><span>Update note</span><textarea required value={note} onChange={(event) => setNote(event.target.value)} rows="3" placeholder="Explain what changed and what happens next..." className="rounded-lg border border-slate-300 p-3 outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-100" /></label><div className="mt-5 flex justify-end gap-3"><Button type="button" variant="secondary" onClick={() => setSelected(null)}>Cancel</Button><Button type="submit" loading={updating}>Save update</Button></div></form>
     </Card></div>}

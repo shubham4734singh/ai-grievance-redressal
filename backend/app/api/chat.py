@@ -53,7 +53,7 @@ async def chat_with_bot(
             "Keep responses conversational, always reply in their language, but ensure the [SUBMIT] block is ALWAYS in English."
         )
     }
-    
+
     messages = [system_prompt] + [msg.model_dump() for msg in request.messages]
     if request.current_location:
         location_context = (
@@ -71,32 +71,32 @@ async def chat_with_bot(
             "content": "The user attached an evidence image for this complaint. Store this Cloudinary URL with the grievance: "
             f"{request.evidence_url}"
         })
-    
+
     from app.services.security import check_for_jailbreak
-    
+
     # Check all incoming messages for jailbreak attempts
     user_messages = " ".join([msg.content for msg in request.messages if msg.role == "user"])
     if check_for_jailbreak(user_messages):
         # Increment jailbreak attempts
         from bson import ObjectId
         user_id = current_user.get("id") or current_user.get("_id")
-        
+
         await db.users.update_one(
             {"_id": ObjectId(user_id) if isinstance(user_id, str) else user_id},
             {"$inc": {"jailbreak_attempts": 1}}
         )
-        
+
         # Fetch updated user to check count
         updated_user = await db.users.find_one({"_id": ObjectId(user_id) if isinstance(user_id, str) else user_id})
         attempts = updated_user.get("jailbreak_attempts", 1)
-        
+
         if attempts >= 3:
             # Here we would send an alert to superadmin. For now we just return a strong error.
             # You can wire this up to send an email to superadmin.
             return {"reply": " **SECURITY ALERT**: Multiple malicious prompt injection attempts detected from this account. Your account has been flagged and the Super Admin has been notified."}
-        
+
         return {"reply": f" **Warning**: Malicious prompt injection detected. This system is for filing civic grievances only. Attempt {attempts}/3 before admin notification."}
-        
+
     try:
         response = await client.chat.completions.create(
             messages=messages,
@@ -104,29 +104,46 @@ async def chat_with_bot(
             temperature=0.5,
             max_tokens=300,
         )
-        
+
         reply = response.choices[0].message.content
         expects_location_permission = "[ASK_LOCATION_PERMISSION]" in reply
         reply = reply.replace("[ASK_LOCATION_PERMISSION]", "").strip()
-        
+
         # Check if [SUBMIT] tags exist
         submit_match = re.search(r"\[SUBMIT\](.*?)\[/SUBMIT\]", reply, re.DOTALL)
         if submit_match:
             final_description = submit_match.group(1).strip()
-            
+
             # File the grievance using the same logic as POST /api/grievances
             from app.api.grievances import generate_tracking_id
             from app.services.nlp import categorize_grievance
+            from app.services.similarity import find_location_duplicate
+            from app.services.notifications import create_notification, notify_department_admins
             from app.models.grievance import GrievanceInDB, StatusHistoryEntry
-            
+
             tracking_id = generate_tracking_id()
             ai_analysis = await categorize_grievance(final_description)
-            
+            latitude = request.current_location.latitude if request.current_location else None
+            longitude = request.current_location.longitude if request.current_location else None
+            duplicate_match = None
+            if ai_analysis.get("category"):
+                recent_similar = await db.grievances.find(
+                    {"category": ai_analysis["category"], "status": {"$ne": "Resolved"}},
+                    {"tracking_id": 1, "description": 1, "latitude": 1, "longitude": 1}
+                ).to_list(length=50)
+                duplicate_match = find_location_duplicate(
+                    final_description,
+                    latitude,
+                    longitude,
+                    recent_similar,
+                )
+            duplicate_tracking_id = duplicate_match["tracking_id"] if duplicate_match else None
+
             initial_history = StatusHistoryEntry(
                 status="Submitted",
-                note="Grievance filed automatically via AI Chatbot."
+                note="Grievance filed automatically via AI Chatbot. Duplicate detected." if duplicate_tracking_id else "Grievance filed automatically via AI Chatbot."
             )
-            
+
             db_grievance = GrievanceInDB(
                 tracking_id=tracking_id,
                 description=final_description,
@@ -135,8 +152,8 @@ async def chat_with_bot(
                     if request.current_location
                     else "Location specified in description"
                 ),
-                latitude=request.current_location.latitude if request.current_location else None,
-                longitude=request.current_location.longitude if request.current_location else None,
+                latitude=latitude,
+                longitude=longitude,
                 location_accuracy=request.current_location.accuracy if request.current_location else None,
                 category=ai_analysis.get("category", "General"),
                 department=ai_analysis.get("department", "Unassigned"),
@@ -144,15 +161,37 @@ async def chat_with_bot(
                 sentiment=ai_analysis.get("sentiment", "Neutral"),
                 history=[initial_history],
                 user_id=current_user["id"],
-                evidence_url=request.evidence_url or ""
+                evidence_url=request.evidence_url or "",
+                duplicate_of=duplicate_tracking_id
             )
-            
+
             await db.grievances.insert_one(db_grievance.model_dump(by_alias=True))
-            
+
+            duplicate_note = ""
+            if duplicate_match and duplicate_match.get("reason") == "location_text":
+                duplicate_note = f" It appears related to {duplicate_tracking_id}, about {duplicate_match['distance_meters']}m away."
+            elif duplicate_tracking_id:
+                duplicate_note = f" It appears related to {duplicate_tracking_id}."
+
+            await create_notification(
+                db,
+                current_user["id"],
+                tracking_id,
+                "Grievance Submitted",
+                f"Your chatbot grievance has been submitted and routed to {ai_analysis.get('department', 'Unassigned')}.{duplicate_note}",
+            )
+            await notify_department_admins(
+                db,
+                ai_analysis.get("department", "Unassigned"),
+                tracking_id,
+                "New Chatbot Grievance Assigned",
+                f"{tracking_id} has been routed with {ai_analysis.get('priority', 'Medium')} priority.{duplicate_note}",
+            )
+
             # Replace the tag in the reply with a success message
             success_msg = f"\n\n **Success!** I have automatically filed this grievance on your behalf. Your Tracking ID is **{tracking_id}**. You can monitor its status on the Track Status page."
             reply = re.sub(r"\[SUBMIT\].*?\[/SUBMIT\]", success_msg, reply, flags=re.DOTALL)
-            
+
         return {
             "reply": reply,
             "expects_location_permission": expects_location_permission
