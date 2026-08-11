@@ -221,9 +221,18 @@ async def handle_location(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # --- SEND TO DEPARTMENT ON TELEGRAM ---
     dept_name = grievance_data['department']
     dept_admin = await db.users.find_one({"role": "admin", "department": dept_name, "telegram_chat_id": {"$exists": True, "$ne": ""}})
+    super_admin = await db.users.find_one({"role": "admin", "department": "All", "telegram_chat_id": {"$exists": True, "$ne": ""}})
     
+    targets = []
     if dept_admin and dept_admin.get("telegram_chat_id"):
-        target_group_id = dept_admin["telegram_chat_id"]
+        targets.append(dept_admin["telegram_chat_id"])
+    
+    if super_admin and super_admin.get("telegram_chat_id"):
+        super_id = super_admin["telegram_chat_id"]
+        if super_id not in targets:
+            targets.append(super_id)
+            
+    for target_group_id in targets:
         officer_msg = (
             f"*New Grievance Assigned to {dept_name}*\n\n"
             f"*Tracking ID:* `{tracking_id}`\n"
