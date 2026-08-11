@@ -130,11 +130,13 @@ async def handle_grievance_input(update: Update, context: ContextTypes.DEFAULT_T
         photo_url = file.file_path
         
         context.user_data['evidence_url'] = photo_url
+        context.user_data['photo_file_id'] = photo_file_id
         context.user_data['description'] = description
     else:
         # Just text
         description = update.message.text
         context.user_data['evidence_url'] = ""
+        context.user_data['photo_file_id'] = ""
         context.user_data['description'] = description
 
     # Request Location
@@ -164,6 +166,7 @@ async def handle_location(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     description = context.user_data['description']
     evidence_url = context.user_data['evidence_url']
+    photo_file_id = context.user_data.get('photo_file_id', "")
     phone_number = context.user_data['phone_number']
     first_name = context.user_data['first_name']
     
@@ -232,7 +235,9 @@ async def handle_location(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         
         try:
-            if evidence_url:
+            if photo_file_id:
+                await context.bot.send_photo(chat_id=target_group_id, photo=photo_file_id, caption=officer_msg, parse_mode="Markdown")
+            elif evidence_url:
                 await context.bot.send_photo(chat_id=target_group_id, photo=evidence_url, caption=officer_msg, parse_mode="Markdown")
             else:
                 await context.bot.send_message(chat_id=target_group_id, text=officer_msg, parse_mode="Markdown")
