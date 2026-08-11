@@ -10,7 +10,7 @@ const ProtectedRoute = ({ children, officerOnly = false }) => {
   if (!token) {
     return <Navigate to="/login" replace />;
   }
-  if ((officerOnly || window.location.pathname === '/admin') && user?.email?.trim().toLowerCase() !== OFFICER_EMAIL) {
+  if ((officerOnly || window.location.pathname === '/admin' || window.location.pathname === '/analytics') && user?.role !== 'admin') {
     return <Navigate to="/" replace />;
   }
   
