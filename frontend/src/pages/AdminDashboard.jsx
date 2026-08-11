@@ -254,7 +254,8 @@ const AdminDashboard = () => {
     const search = query.trim().toLowerCase();
     return grievances.filter((item) => {
       const matchesSearch = !search || [item.tracking_id, item.description, item.location, item.category, item.department].filter(Boolean).join(' ').toLowerCase().includes(search);
-      return matchesSearch && (statusFilter === 'All' || item.status === statusFilter) && (priorityFilter === 'All' || item.priority === priorityFilter);
+      const matchesDepartment = user.department === 'All' || item.department === user.department;
+      return matchesSearch && matchesDepartment && (statusFilter === 'All' || item.status === statusFilter) && (priorityFilter === 'All' || item.priority === priorityFilter);
     }).sort((a, b) => {
       if (sort === 'priority') return (priorityRank[b.priority] || 0) - (priorityRank[a.priority] || 0);
       if (sort === 'oldest') return new Date(a.created_at) - new Date(b.created_at);
