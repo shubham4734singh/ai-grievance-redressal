@@ -181,12 +181,48 @@ async def chat_with_bot(
                 "Grievance Submitted",
                 f"Your chatbot grievance has been submitted and routed to {ai_analysis.get('department', 'Unassigned')}.{duplicate_note}",
             )
+            # --- SEND DETAILED TELEGRAM NOTIFICATION ---
+            dept_name = ai_analysis.get("department", "Unassigned")
+            dept_admin = await db.users.find_one({"role": "admin", "department": dept_name, "telegram_chat_id": {"$exists": True, "$ne": ""}})
+            super_admin = await db.users.find_one({"role": "admin", "department": "All", "telegram_chat_id": {"$exists": True, "$ne": ""}})
+
+            targets = []
+            if dept_admin and dept_admin.get("telegram_chat_id"):
+                targets.append(dept_admin["telegram_chat_id"])
+            if super_admin and super_admin.get("telegram_chat_id") and super_admin["telegram_chat_id"] not in targets:
+                targets.append(super_admin["telegram_chat_id"])
+
+            if targets:
+                c_name = current_user.get("full_name", "Citizen")
+                c_phone = current_user.get("phone", "N/A")
+                c_email = current_user.get("email", "N/A")
+
+                from app.services.notifications import send_telegram_message
+                officer_msg = (
+                    f"*New Chatbot Grievance Assigned to {dept_name}*\n\n"
+                    f"*Tracking ID:* `{tracking_id}`\n"
+                    f"*Category:* {ai_analysis.get('category', 'General')}\n"
+                    f"*Priority:* {ai_analysis.get('priority', 'Medium')}\n"
+                    f"*Location:* {db_grievance.location}\n\n"
+                    f"*Description:* {final_description}\n\n"
+                    f"*Reporter Name:* {c_name}\n"
+                    f"*Reporter Phone:* {c_phone}\n"
+                    f"*Reporter Email:* {c_email}"
+                )
+                if request.evidence_url:
+                    officer_msg += f"\n\n*Evidence:* [View Image]({request.evidence_url})"
+
+                for target_id in targets:
+                    await send_telegram_message(target_id, officer_msg)
+            # -------------------------------------------
+
             await notify_department_admins(
                 db,
                 ai_analysis.get("department", "Unassigned"),
                 tracking_id,
                 "New Chatbot Grievance Assigned",
                 f"{tracking_id} has been routed with {ai_analysis.get('priority', 'Medium')} priority.{duplicate_note}",
+                send_telegram=False
             )
 
             # Replace the tag in the reply with a success message
